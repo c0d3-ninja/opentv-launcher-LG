@@ -1,38 +1,28 @@
 # 📺 OpenTV Launcher for LG
 
-A clean, ad-free home screen for rooted LG webOS TVs, in the style of Apple TV.
+A clean, ad-free home screen for rooted LG webOS TVs, in the style of Apple TV, with a built-in ad blocker.
 
 ✅ Tested on an LG OLED42C2PSA (webOS 22), rooted with [slopbro](https://github.com/throwaway96/slopbro).
 
----
-
-## 🖼️ Before and after
-
-**😩 Before: LG's home screen**
-
-![LG's home screen](docs/screenshots/before-lg-home.jpg)
-
-**😍 After: OpenTV Launcher**
-
-![OpenTV Launcher](docs/screenshots/after-opentv-launcher.jpg)
+| 😩 Before: LG's home screen | 😍 After: OpenTV Launcher |
+| --- | --- |
+| ![LG's home screen](docs/screenshots/before-lg-home.jpg) | ![OpenTV Launcher](docs/screenshots/after-opentv-launcher.jpg) |
 
 ---
 
 ## ✨ What you get
 
-- 🕘 **Recent row:** the apps you used last come first (up to 10). If you've used fewer than 6, your favourites fill the gap.
-- 📱 **All Apps:** every installed app, with its real icon.
-- 👁️ **Hide LG TV apps:** hides LG's own apps, keeping only Browser, Apps (the LG store) and HDMI inputs. It's off by default.
-- 🗑️ **Delete apps like on LG's home:** hold OK on an app, press ⬆️ to the **Delete** button above it, and confirm in LG's own popup. LG's built-in apps can't be deleted.
-- 🛟 **Safe by design:** if the launcher ever hits an error, it tells you and opens LG's home instead, so the TV is never stuck.
-- 🖥️ **Fits any screen:** HD, Full HD and 4K, and fills other screen shapes too.
-- 🏠 **Always your home screen:** opens when the TV turns on, when it wakes from standby, and when you press **Home**.
-- 🧭 **Top bar:** Settings, Restart, Notifications and LG Home on the left; clock, Search, Launcher Settings and Profile on the right.
-- 🔄 **Restart button:** restarts the TV after you confirm in LG's own popup.
-- 🔙 **Recent Lists:** press **Back twice** to see your open apps, then close one or close all.
-- 🆕 **New apps appear by themselves,** with their icons.
-- 🌊 **Smooth animations** while you move around.
-- 🚫 **No ads, no banners.**
+- 🕘 **Recent row:** your last used apps first (up to 10), topped up with favourites.
+- 📱 **All Apps:** every installed app, with its real icon. New apps appear by themselves.
+- 🛡️ **Block ads:** one switch removes Prime Video's ad breaks and pause ads, and blocks Google's ad servers for every app. Off until you switch it on. Powered by [opentv-adblock-webos](https://github.com/c0d3-ninja/opentv-adblock-webos).
+- 👁️ **Hide LG TV apps:** keeps only Browser, Apps (the LG store) and HDMI inputs. Off by default.
+- 🗑️ **Delete apps like on LG's home:** hold OK, ⬆️ to **Delete**, confirm in LG's own popup.
+- 🔙 **Recent Lists:** press **Back twice** to see open apps, then close one or all.
+- 🔄 **Restart button:** clears Recent Lists, then restarts the TV after LG's own confirmation.
+- 📊 **Show performance:** memory and storage on the home screen.
+- 🏠 **Always your home screen:** at power on, on wake from standby and on **Home**.
+- 🛟 **Safe by design:** on any error it tells you and opens LG's home, so the TV is never stuck.
+- 🖥️ **Fits any screen,** with smooth animations. No ads, no banners.
 
 ---
 
@@ -43,91 +33,39 @@ A clean, ad-free home screen for rooted LG webOS TVs, in the style of Apple TV.
 | webOS version | TV years | Will it work? |
 | --- | --- | --- |
 | webOS 22 (7.x) | 2022 | ✅ Tested |
-| webOS 23 / 24 / 25 | 2023 to 2025 | 🟡 Likely, but untested. The system parts it relies on are the same family, with a newer web engine. The open question is whether root is available for the firmware you have. |
-| webOS 6 | 2021 | 🟠 Probably works with small fixes |
+| webOS 23 / 24 / 25 | 2023 to 2025 | 🟡 Likely, untested. Same system parts, newer web engine. The open question is root for your firmware. |
+| webOS 6 | 2021 | 🟠 Probably, with small fixes |
 | webOS 5 and older | 2020 and earlier | 🔴 Not without fixes |
 
-🤖 **Have one of the untested versions?** Ask an AI assistant to help you adapt it: share this README, your webOS version and the log from `/tmp/opentvlauncher.log`, and ask it to check what needs changing.
+🤖 **Untested version?** Ask an AI assistant to adapt it: share this README, your webOS version and `/tmp/opentvlauncher.log`.
 
 ---
 
-## 🧰 Before you start (prerequisites)
+## 🧰 Before you start
 
 1. 🔓 **Root your TV.** I used [slopbro](https://github.com/throwaway96/slopbro):
    - 🔎 Your TV not supported by slopbro? Check [CanI.RootMy.TV](https://cani.rootmy.tv) for other options.
-   - 🐍 Get the slopbro repo on a computer that has Python 3.
-   - 📶 Put the computer and the TV on the same network.
-   - ▶️ Run slopbro, following its README. Accept the pairing prompt on the TV when it appears.
-   - 🍺 When it finishes, the **Homebrew Channel** is installed on your TV.
-2. 🗑️ **Remove LG's "Developer Mode" app** if it's installed on your TV. Uninstall it from the TV like any other app. When its session runs out, it can delete apps installed like this one, and on a rooted TV the Homebrew Channel already does its job.
-3. 🖥️ **Turn on root shell access.** On the TV, open **Homebrew Channel → Settings** and turn on **Telnet** (or **SSH**).
-4. 🔢 **Find your TV's IP address.** On the TV, go to **Settings → Network → Wi-Fi (or Wired) → Advanced Settings**.
-5. 💻 **A computer on the same network,** to log in to the TV. (Mac or Linux with Python 3 is only needed for the backup install method.)
-6. 🧪 **Check you can log in to the TV:**
-   ```sh
-   telnet <TV IP address>
-   ```
-   You should get a `#` prompt, which means you are root. On a Mac without telnet, run `brew install telnet` first.
+   - 🐍 Run slopbro from a computer with Python 3 on the same network, following its README, and accept the pairing prompt on the TV.
+   - 🍺 When it finishes, the **Homebrew Channel** is on your TV.
+2. 🗑️ **Remove LG's "Developer Mode" app** if you have it. When its session runs out it can delete apps like this one, and the Homebrew Channel already does its job.
+3. 🖥️ **Turn on root shell access:** **Homebrew Channel → Settings → Telnet** (or SSH).
+4. 🧪 **Log in from a computer on the same network:** `telnet <TV IP address>` (the IP is in **Settings → Network → Advanced Settings**). A `#` prompt means you're root. Mac without telnet? `brew install telnet`.
 
 ---
 
-## 🚀 Install (one command on the TV)
+## 🚀 Install
 
-1. 🔌 Log in to the TV's root shell from your computer:
-   ```sh
-   telnet <TV IP address>
-   ```
-2. 📋 Paste this one line and press Enter:
-   ```sh
-   curl -fsSL https://raw.githubusercontent.com/c0d3-ninja/opentv-launcher-LG/main/install/install.sh | sh
-   ```
-3. ⏳ Wait about a minute. The TV downloads everything from GitHub, installs it and checks every step:
-   ```
-     [ OK ] OpenTV Launcher is installed
-     [ OK ] All app files are in place
-     [ OK ] Starts automatically every time the TV turns on
-     [ OK ] Background watcher is running
-     [ OK ] Root access is working
-     [ OK ] OpenTV Launcher is on screen
+In the TV's root shell, paste:
 
-     Done! OpenTV Launcher is installed and verified.
-   ```
-4. 🎉 That's it. Press **Home** on your remote.
+```sh
+curl -fsSL https://raw.githubusercontent.com/c0d3-ninja/opentv-launcher-LG/main/install/install.sh | sh
+```
 
-### 🛟 Backup: TV can't reach GitHub?
+It downloads, installs, sets up the ad blocker (off) and checks every step, ending with **"Done! OpenTV Launcher is installed and verified."** Then press **Home**.
 
-Some TVs block downloads from the internet. If so, the installer tells you, and you can share the files from your computer instead:
+🛟 **TV can't reach GitHub?** On a computer with Python 3, get this repo (`git clone` or **Code → Download ZIP**), run `sh install/serve.sh` inside it, and paste the **INSTALL** line it prints into the TV. Press **Ctrl+C** on the computer when the TV says "Done!".
 
-1. 💻 On your computer, get the project, either with git:
-   ```sh
-   git clone https://github.com/c0d3-ninja/opentv-launcher-LG.git
-   cd opentv-launcher-LG
-   ```
-   or by downloading the ZIP from GitHub (**Code → Download ZIP**), unzipping it and opening a terminal in that folder.
-2. 💻 Start sharing it with the TV:
-   ```sh
-   sh install/serve.sh
-   ```
-   It finds your computer's IP address and prints the exact line to paste on the TV. Keep the window open. If your computer asks whether to allow incoming connections, click **Allow**.
-3. 📺 On the TV's root shell, paste the **INSTALL** line it printed. It looks like this:
-   ```sh
-   curl -fsS http://192.168.1.4:8000/install/install.sh | sh -s 192.168.1.4 8000
-   ```
-4. ✅ When the TV says **"Done!"**, press **Ctrl+C** on your computer to stop sharing.
-
----
-
-## 🗑️ Uninstall
-
-1. 📺 On the TV's root shell, paste:
-   ```sh
-   curl -fsSL https://raw.githubusercontent.com/c0d3-ninja/opentv-launcher-LG/main/install/uninstall.sh | sh
-   ```
-   (No internet on the TV? Run `sh install/serve.sh` on your computer and paste the **UNINSTALL** line it prints.)
-2. ⏳ It first takes you to LG's home, then removes everything. This takes up to 2 minutes (if the TV is busy, for example just after switching on, it asks again by itself).
-3. ✅ It ends with **"Done! OpenTV Launcher is uninstalled and verified."** The Homebrew Channel and root access are not touched.
-
-💡 Deleted it from LG's own home instead? That's fine too: within a couple of minutes the launcher's background watcher notices, removes its start-up file and saved data, and stops by itself.
+🔄 **Updating:** run the install command again. Your settings, recent apps and Block ads setting are kept.
 
 ---
 
@@ -136,23 +74,45 @@ Some TVs block downloads from the internet. If so, the installer tells you, and 
 | Remote button | What happens |
 | --- | --- |
 | 🏠 Home | Opens OpenTV Launcher |
-| ⬅️ ➡️ ⬆️ ⬇️ | Move around |
-| 🆗 OK | Open the app |
-| 🔙 Back twice | Recent Lists (open apps) |
-| ⬆️ in Recent Lists | Close an app, or Close All |
-| 🆗 Hold OK on an app | Edit mode: ⬆️ to **Delete**, OK, then confirm in LG's popup. 🔙 cancels |
+| 🆗 OK / hold OK | Open the app / Edit mode: ⬆️ to **Delete**, 🔙 cancels |
+| 🔙 Back twice | Recent Lists: ⬆️ to close an app or Close All |
+| 🎛️ Sliders (top bar) | Launcher Settings: **Hide LG TV apps**, **Show performance**, **Block ads** |
 | 🏠 LG Home (top bar) | LG's original home screen |
-| 🎛️ Sliders (top bar) | Launcher Settings: ⬆️ ⬇️ pick **Hide LG TV apps** or **Show performance**, OK switches it |
+
+🛠️ **Customise** in `app/apps.js` (`dock` favourites, `showLgApps`, `profileInitial`), then `sh build-ipk.sh` and install again.
 
 ---
 
-## 🛠️ Customise
+## 🗑️ Uninstall
 
-Edit `app/apps.js`, run `sh build-ipk.sh`, then install again:
+```sh
+curl -fsSL https://raw.githubusercontent.com/c0d3-ninja/opentv-launcher-LG/main/install/uninstall.sh | sh
+```
 
-- ⭐ `dock`: your favourite apps.
-- 👁️ `showLgApps`: LG apps that stay visible when **Hide LG TV apps** is on.
-- 🔤 `profileInitial`: the letter on the profile button.
+It goes to LG's home first, then removes everything in up to 2 minutes, ending with **"Done! OpenTV Launcher is uninstalled and verified."** The Homebrew Channel and root access are not touched.
+
+- 🛡️ **The built-in ad blocker** is switched off and removed too. A [separately installed](https://github.com/c0d3-ninja/opentv-adblock-webos) one is kept.
+- 💡 **Deleted it from LG's home instead?** Within about 2½ minutes the background watcher notices, stops the ad blocker and removes it, deletes its own start-up file and data, and stops. If the TV was off, this happens shortly after the next start.
+
+---
+
+## 🩺 Troubleshooting
+
+- 🔤 **Letters instead of icons:** wait a few seconds and press **Home**.
+- 🔒 **"Root access is not on yet":** press **Home** once.
+- 🏠 **LG's home instead of the launcher:** run the install command again.
+- 🛡️ **No Block ads in Launcher Settings:** run the install command again and check step 7.
+- 🛡️ **Ads still show:** `sh /home/root/opentv-adblock/ctl.sh status` and `… ctl.sh logs`, and see the [ad blocker's troubleshooting](https://github.com/c0d3-ninja/opentv-adblock-webos#-troubleshooting).
+- 📝 **Anything else:** include `cat /tmp/opentvlauncher.log` when you report it.
+
+---
+
+## 🐢 Good to know
+
+- ⏱️ **At power on,** LG's screen shows first and the launcher takes over after about **3 to 5 seconds**.
+- ⚡ **After Home or Back,** the launcher appears within about **0.1 to 1 second**; you may briefly see LG's home. LG doesn't let other apps replace its home screen, so the launcher steps in right after it opens.
+- 🛡️ **Switching Block ads** takes a few seconds and closes the apps in Recent Lists, so they open fresh with the new setting.
+- 📺 **YouTube** ads are only partly blocked for now.
 
 ---
 
@@ -160,49 +120,20 @@ Edit `app/apps.js`, run `sh build-ipk.sh`, then install again:
 
 | Path | What it is |
 | --- | --- |
-| 📁 `app/` | The launcher screen (HTML, CSS, JavaScript). |
-| 🛟 `app/boot.js` | The safety net: on any error it shows a message and opens LG's home. |
-| 📋 `app/apps.js` | Your favourites and which LG apps stay visible. |
-| ⚙️ `service/` | A small background service with root access. It copies icons, reads LG's recent list, closes and deletes apps, reads memory and storage, saves settings and restarts the TV. It can't run arbitrary commands. |
-| 👀 `app/autostart.sh` | The watcher. It opens the launcher at power on, on wake and on Home, and remembers recently used apps. |
-| 📦 `dist/` | The ready-to-install IPK. |
-| 🧰 `install/` | `install.sh` and `uninstall.sh` (run on the TV), `serve.sh` (backup: shares the files from your computer). |
-| 🖼️ `docs/screenshots/` | The before and after pictures. |
-| 🎨 `docs/icon/` | The app icon's source file (SVG). |
-| 🏗️ `build-ipk.sh` | Builds the IPK from `app/` and `service/`. |
+| 📁 `app/` | The launcher screen. `boot.js` is the safety net, `apps.js` your favourites, `autostart.sh` the watcher (opens the launcher at power on, on wake and on Home). |
+| 🛡️ `app/adblock/` | The built-in ad blocker, a tagged release of [opentv-adblock-webos](https://github.com/c0d3-ninja/opentv-adblock-webos), installed to `/home/root/opentv-adblock`. Update with `sh scripts/sync-adblock.sh ../opentv-adblock-webos <tag>`. |
+| ⚙️ `service/` | A small root service: icons, recent apps, closing and deleting apps, memory and storage, settings, the ad blocker switch and restart. It can't run arbitrary commands. |
+| 🧰 `install/` | `install.sh` and `uninstall.sh` (run on the TV), `serve.sh` (shares the files from your computer). |
+| 📦 `dist/`, 🏗️ `build-ipk.sh` | The ready-to-install IPK, and the script that builds it. |
+| 🖼️ `docs/` | Screenshots and the icon's source (SVG). |
 
-📝 The log on the TV is `/tmp/opentvlauncher.log`. If something isn't working, check it first.
-
----
-
-## 🔄 Updating
-
-Run the same install command again on the TV. It replaces the old version and keeps your settings and recent apps.
-
----
-
-## 🩺 Troubleshooting
-
-- 🔤 **Tiles show letters instead of icons:** wait a few seconds and press **Home**. Icons are copied in the background.
-- 🔒 **"Root access is not on yet":** press **Home** once. The watcher turns it on by itself.
-- 🏠 **LG's home shows instead of the launcher:** the watcher may not be running. Run the install command again.
-- 🌐 **The TV can't download from GitHub:** use the backup method with `install/serve.sh`.
-- 📝 **Anything else:** on the TV, run `cat /tmp/opentvlauncher.log` and include it when you report the problem.
-
----
-
-## 🐢 Good to know (small trade-offs)
-
-- ⏱️ **When the TV turns on,** LG's own screen shows first, and OpenTV Launcher takes over after about **3 to 5 seconds**.
-- ⚡ **After pressing Home or Back,** OpenTV Launcher appears after a short moment, from about **0.1 to 1 second**. You may briefly see LG's home before it.
-
-This is because LG doesn't let other apps replace its home screen directly, so OpenTV Launcher steps in right after LG's home opens.
+📝 The log on the TV is `/tmp/opentvlauncher.log`.
 
 ---
 
 ## ⚠️ Disclaimer
 
 - 🔓 Rooting your TV **may void its warranty** and can, in rare cases, damage it. **You do this at your own risk.**
-- 🤝 This is an **unofficial, community project.** It is **not affiliated with, endorsed by or supported by LG Electronics or Apple.** "LG", "webOS" and "Apple TV" are trademarks of their owners.
+- 🤝 An **unofficial, community project**, **not affiliated with, endorsed by or supported by LG Electronics, Apple, Amazon or Google.** "LG", "webOS" and "Apple TV" are trademarks of their owners.
 - 🔄 LG software updates may remove root access or stop this launcher from working.
-- 🧯 The software is provided **"as is", without warranty of any kind.** The authors are not responsible for any damage, data loss or other problems.
+- 🧯 Provided **"as is", without warranty of any kind.** The authors are not responsible for any damage, data loss or other problems.
