@@ -111,6 +111,8 @@ Some TVs block downloads from the internet. If so, the installer tells you, and 
    (No internet on the TV? Run `sh install/serve.sh` on your computer and paste the **UNINSTALL** line it prints.)
 2. ✅ It ends with **"Done! OpenTV Launcher is uninstalled and verified."** LG's own home comes back. The Homebrew Channel and root access are not touched.
 
+💡 Deleted it from LG's own home instead? That's fine too: within a couple of minutes the launcher's background watcher notices, removes its start-up file and saved data, and stops by itself.
+
 ---
 
 ## 🎮 Using it

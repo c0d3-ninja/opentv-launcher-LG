@@ -31,6 +31,8 @@ elevate() {
 }
 
 open_launcher() {
+  # App deleted (watch_uninstall cleans up shortly): leave LG's home alone
+  [ -d "$APPDIR" ] || return 0
   # Reinstalling the app wipes its folder: re-copy icons if they are gone,
   # and restart the page so it picks them up.
   if [ ! -f "$APPDIR/installed.js" ]; then
@@ -157,7 +159,45 @@ watch_power() {
   done
 }
 
+# The app was deleted some other way (for example from LG's own home):
+# remove this watcher's start-up file and saved data, then stop everything.
+INIT_FILE="/var/lib/webosbrew/init.d/50opentvlauncher"
+app_is_gone() {
+  [ -d "$APPDIR" ] && return 1
+  out=$(luna-send -n 1 -w 8000 luna://com.webos.applicationManager/dev/listApps '{}' 2>/dev/null)
+  echo "$out" | grep -q '"returnValue": *true' || return 1   # no answer: don't guess
+  echo "$out" | grep -q "\"$APP_ID\"" && return 1
+  return 0
+}
+
+cleanup_if_uninstalled() {
+  app_is_gone || return 0
+  # A reinstall also removes the folder for a moment: check again later
+  sleep 90
+  app_is_gone || return 0
+  echo "$(date) app was uninstalled: removing the watcher"
+  rm -f "$INIT_FILE"
+  rm -rf "$RECENT_DIR"
+  for p in $(ps -ef 2>/dev/null | grep -E "luna-send -i .*(getForegroundAppInfo|getPowerState)|tail -n 0 -F /var/log/messages" | grep -v grep | awk '{print $2}'); do
+    kill "$p" 2>/dev/null
+  done
+  for p in $(ps -ef 2>/dev/null | grep -E "50opentvlauncher|$APP_ID/autostart.sh" | grep -v grep | awk '{print $2}'); do
+    kill "$p" 2>/dev/null   # includes this process: everything stops
+  done
+  exit 0
+}
+
+watch_uninstall() {
+  while true; do
+    sleep 60
+    cleanup_if_uninstalled
+  done
+}
+
 main() {
+  # Uninstalled while the TV was off: clean up and stop
+  cleanup_if_uninstalled
+
   # Wait for the app manager to come up after boot (up to 2 minutes).
   i=0
   while [ $i -lt 60 ]; do
@@ -178,6 +218,7 @@ main() {
   watch_home_log &
   watch_home &
   watch_power &
+  watch_uninstall &
 
   echo "$(date) boot -> launcher"
   open_and_hold boot
