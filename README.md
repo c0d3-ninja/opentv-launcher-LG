@@ -43,31 +43,72 @@ A clean, ad-free home screen for rooted LG webOS TVs, in the style of Apple TV, 
 
 ---
 
-## 🧰 Before you start
+## 🧰 Before you start (prerequisites)
 
 1. 🔓 **Root your TV.** I used [slopbro](https://github.com/throwaway96/slopbro):
    - 🔎 Your TV not supported by slopbro? Check [CanI.RootMy.TV](https://cani.rootmy.tv) for other options.
-   - 🐍 Run slopbro from a computer with Python 3 on the same network, following its README, and accept the pairing prompt on the TV.
-   - 🍺 When it finishes, the **Homebrew Channel** is on your TV.
-2. 🗑️ **Remove LG's "Developer Mode" app** if you have it. When its session runs out it can delete apps like this one, and the Homebrew Channel already does its job.
-3. 🖥️ **Turn on root shell access:** **Homebrew Channel → Settings → Telnet** (or SSH).
-4. 🧪 **Log in from a computer on the same network:** `telnet <TV IP address>` (the IP is in **Settings → Network → Advanced Settings**). A `#` prompt means you're root. Mac without telnet? `brew install telnet`.
+   - 🐍 Get the slopbro repo on a computer that has Python 3.
+   - 📶 Put the computer and the TV on the same network.
+   - ▶️ Run slopbro, following its README. Accept the pairing prompt on the TV when it appears.
+   - 🍺 When it finishes, the **Homebrew Channel** is installed on your TV.
+2. 🗑️ **Remove LG's "Developer Mode" app** if it's installed on your TV. Uninstall it from the TV like any other app. When its session runs out, it can delete apps installed like this one, and on a rooted TV the Homebrew Channel already does its job.
+3. 🖥️ **Turn on root shell access.** On the TV, open **Homebrew Channel → Settings** and turn on **Telnet** (or **SSH**).
+4. 🔢 **Find your TV's IP address.** On the TV, go to **Settings → Network → Wi-Fi (or Wired) → Advanced Settings**.
+5. 💻 **A computer on the same network,** to log in to the TV. (Mac or Linux with Python 3 is only needed for the backup install method.)
+6. 🧪 **Check you can log in to the TV:**
+   ```sh
+   telnet <TV IP address>
+   ```
+   You should get a `#` prompt, which means you are root. On a Mac without telnet, run `brew install telnet` first.
 
 ---
 
-## 🚀 Install
+## 🚀 Install (one command on the TV)
 
-In the TV's root shell, paste:
+1. 🔌 Log in to the TV's root shell from your computer:
+   ```sh
+   telnet <TV IP address>
+   ```
+2. 📋 Paste this one line and press Enter:
+   ```sh
+   curl -fsSL https://raw.githubusercontent.com/c0d3-ninja/opentv-launcher-LG/main/install/install.sh | sh
+   ```
+3. ⏳ Wait about a minute. The TV downloads everything from GitHub, installs it and checks every step:
+   ```
+     [ OK ] OpenTV Launcher is installed
+     [ OK ] All app files are in place
+     [ OK ] Starts automatically every time the TV turns on
+     [ OK ] Ad blocker installed. It is off: switch on "Block ads" in Launcher Settings
+     [ OK ] Background watcher is running
+     [ OK ] Root access is working
+     [ OK ] OpenTV Launcher is on screen
 
-```sh
-curl -fsSL https://raw.githubusercontent.com/c0d3-ninja/opentv-launcher-LG/main/install/install.sh | sh
-```
+     Done! OpenTV Launcher is installed and verified.
+   ```
+4. 🎉 That's it. Press **Home** on your remote.
 
-It downloads, installs, sets up the ad blocker (off) and checks every step, ending with **"Done! OpenTV Launcher is installed and verified."** Then press **Home**.
+🔄 **Updating:** run the same install command again. Your settings, recent apps and **Block ads** setting are kept.
 
-🛟 **TV can't reach GitHub?** On a computer with Python 3, get this repo (`git clone` or **Code → Download ZIP**), run `sh install/serve.sh` inside it, and paste the **INSTALL** line it prints into the TV. Press **Ctrl+C** on the computer when the TV says "Done!".
+### 🛟 Backup: TV can't reach GitHub?
 
-🔄 **Updating:** run the install command again. Your settings, recent apps and Block ads setting are kept.
+Some TVs block downloads from the internet. If so, the installer tells you, and you can share the files from your computer instead:
+
+1. 💻 On your computer, get the project, either with git:
+   ```sh
+   git clone https://github.com/c0d3-ninja/opentv-launcher-LG.git
+   cd opentv-launcher-LG
+   ```
+   or by downloading the ZIP from GitHub (**Code → Download ZIP**), unzipping it and opening a terminal in that folder.
+2. 💻 Start sharing it with the TV:
+   ```sh
+   sh install/serve.sh
+   ```
+   It finds your computer's IP address and prints the exact line to paste on the TV. Keep the window open. If your computer asks whether to allow incoming connections, click **Allow**.
+3. 📺 On the TV's root shell, paste the **INSTALL** line it printed. It looks like this:
+   ```sh
+   curl -fsS http://192.168.1.4:8000/install/install.sh | sh -s 192.168.1.4 8000
+   ```
+4. ✅ When the TV says **"Done!"**, press **Ctrl+C** on your computer to stop sharing.
 
 ---
 
@@ -87,14 +128,17 @@ It downloads, installs, sets up the ad blocker (off) and checks every step, endi
 
 ## 🗑️ Uninstall
 
-```sh
-curl -fsSL https://raw.githubusercontent.com/c0d3-ninja/opentv-launcher-LG/main/install/uninstall.sh | sh
-```
+1. 📺 On the TV's root shell, paste:
+   ```sh
+   curl -fsSL https://raw.githubusercontent.com/c0d3-ninja/opentv-launcher-LG/main/install/uninstall.sh | sh
+   ```
+   (No internet on the TV? Run `sh install/serve.sh` on your computer and paste the **UNINSTALL** line it prints.)
+2. ⏳ It first takes you to LG's home, then removes everything. This takes up to 2 minutes (if the TV is busy, for example just after switching on, it asks again by itself).
+3. ✅ It ends with **"Done! OpenTV Launcher is uninstalled and verified."** The Homebrew Channel and root access are not touched.
 
-It goes to LG's home first, then removes everything in up to 2 minutes, ending with **"Done! OpenTV Launcher is uninstalled and verified."** The Homebrew Channel and root access are not touched.
+🛡️ **The built-in ad blocker** is switched off and removed too. A [separately installed](https://github.com/c0d3-ninja/opentv-adblock-webos) one is kept.
 
-- 🛡️ **The built-in ad blocker** is switched off and removed too. A [separately installed](https://github.com/c0d3-ninja/opentv-adblock-webos) one is kept.
-- 💡 **Deleted it from LG's home instead?** Within about 2½ minutes the background watcher notices, stops the ad blocker and removes it, deletes its own start-up file and data, and stops. If the TV was off, this happens shortly after the next start.
+💡 **Deleted it from LG's home instead?** That's fine too: within about 2½ minutes the background watcher notices, stops and removes the ad blocker, deletes its own start-up file and saved data, and stops. If the TV was off, this happens shortly after the next start.
 
 ---
 
