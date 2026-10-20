@@ -47,18 +47,44 @@ rm -f "$INIT_FILE"
 [ -e "$INIT_FILE" ] && fail "Could not delete $INIT_FILE"
 ok "It will no longer open when the TV turns on"
 
-step 4 "Removing the app"
+step 4 "Removing the app (this takes up to a minute)"
 luna-send -n 1 -w 3000 luna://com.webos.applicationManager/closeByAppId "{\"id\":\"$APP_ID\"}" >/dev/null 2>&1
-luna-send -n 1 -w 30000 luna://com.webos.appInstallService/dev/remove "{\"id\":\"$APP_ID\"}" >/dev/null 2>&1
-sleep 2
 pkill -f "services/$SERVICE_ID" 2>/dev/null
+
+# Is the app still known to the TV? Only trusts a real answer from the TV.
+#   0 = still installed, 1 = gone, 2 = the TV didn't answer
+app_listed() {
+  out=$(luna-send -n 1 -w 8000 luna://com.webos.applicationManager/dev/listApps '{}' 2>/dev/null)
+  echo "$out" | grep -q '"returnValue": *true' || return 2
+  echo "$out" | grep -q "\"$APP_ID\"" && return 0
+  return 1
+}
+
+# LG's own uninstaller runs in the background: start it, then wait for it
+# to finish. The app's files must stay in place until it is done.
+app_listed; state=$?
+if [ $state -ne 1 ]; then
+  luna-send -n 1 -w 30000 luna://com.webos.appInstallService/dev/remove "{\"id\":\"$APP_ID\"}" >/dev/null 2>&1
+  i=0
+  while :; do
+    sleep 2
+    app_listed; state=$?
+    [ $state -eq 1 ] && break
+    i=$((i + 1))
+    [ $i -ge 30 ] && break
+  done
+fi
+[ $state -eq 1 ] || fail "The TV is still removing the app. Wait a minute and run this again."
+ok "The TV removed the app"
+
+# Leftovers (only after LG's uninstaller is done)
 rm -rf "$APPS/applications/$APP_ID" "$APPS/packages/$APP_ID" "$APPS/services/$SERVICE_ID"
 ls-control scan-services >/dev/null 2>&1
-if luna-send -n 1 -w 5000 luna://com.webos.applicationManager/dev/listApps '{}' 2>/dev/null | grep -q "\"$APP_ID\""; then
-  fail "The TV still lists the app. Restart the TV and run this again."
-fi
 [ -d "$APPS/applications/$APP_ID" ] && fail "App files are still in $APPS/applications/$APP_ID"
-ok "App and background service removed"
+if luna-send -n 1 -w 8000 luna://com.webos.applicationManager/listLaunchPoints '{}' 2>/dev/null | grep -q "\"$APP_ID\""; then
+  fail "The app's icon is still on the TV. Restart the TV and run this again."
+fi
+ok "App, icon and background service removed"
 
 step 5 "Removing saved data"
 rm -rf "$DATA_DIR" "$LOG"
