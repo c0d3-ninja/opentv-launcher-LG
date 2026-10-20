@@ -24,17 +24,39 @@ echo "=============================================="
 echo "       OpenTV Launcher for LG: Uninstall"
 echo "=============================================="
 
-step 1 "Checking this TV"
+# Root is needed for everything below
 [ "$(id -u)" = "0" ] || fail "This needs the TV's root shell. Log in as root and run it again."
-ok "Running as root"
+
+stop_watcher() {
+  for p in $(ps -ef 2>/dev/null | grep -E "50opentvlauncher|$APP_ID/autostart.sh" | grep -v grep | awk '{print $2}'); do
+    kill "$p" 2>/dev/null
+  done
+  for p in $(ps -ef 2>/dev/null | grep -E "luna-send -i .*(getForegroundAppInfo|getPowerState)|tail -n 0 -F /var/log/messages" | grep -v grep | awk '{print $2}'); do
+    kill "$p" 2>/dev/null
+  done
+}
+
+step 1 "Going to LG's home screen"
+# Stop the watcher first, or it would put the launcher back on screen
+stop_watcher
+luna-send -n 1 -w 3000 luna://com.webos.applicationManager/closeByAppId "{\"id\":\"$APP_ID\"}" </dev/null >/dev/null 2>&1
+luna-send -n 1 -w 5000 luna://com.webos.applicationManager/launch '{"id":"com.webos.app.home"}' </dev/null >/dev/null 2>&1
+i=0
+while :; do
+  FG=$(luna-send -n 1 -w 3000 luna://com.webos.applicationManager/getForegroundAppInfo '{}' </dev/null 2>/dev/null |
+    sed -n 's/.*"appId": *"\([^"]*\)".*/\1/p')
+  [ "$FG" = "com.webos.app.home" ] && break
+  i=$((i + 1)); [ $i -ge 8 ] && break
+  sleep 1
+done
+if [ "$FG" = "com.webos.app.home" ]; then
+  ok "LG's home is on screen"
+else
+  warn "Couldn't confirm LG's home is on screen. Carrying on."
+fi
 
 step 2 "Stopping the background watcher"
-for p in $(ps -ef 2>/dev/null | grep -E "50opentvlauncher|$APP_ID/autostart.sh" | grep -v grep | awk '{print $2}'); do
-  kill "$p" 2>/dev/null
-done
-for p in $(ps -ef 2>/dev/null | grep -E "luna-send -i .*(getForegroundAppInfo|getPowerState)|tail -n 0 -F /var/log/messages" | grep -v grep | awk '{print $2}'); do
-  kill "$p" 2>/dev/null
-done
+stop_watcher
 sleep 1
 if ps -ef 2>/dev/null | grep -E "50opentvlauncher|$APP_ID/autostart.sh" | grep -v grep >/dev/null; then
   warn "The watcher is still running. It stops for good after the next restart."
@@ -47,41 +69,52 @@ rm -f "$INIT_FILE"
 [ -e "$INIT_FILE" ] && fail "Could not delete $INIT_FILE"
 ok "It will no longer open when the TV turns on"
 
-step 4 "Removing the app (this takes up to a minute)"
-luna-send -n 1 -w 3000 luna://com.webos.applicationManager/closeByAppId "{\"id\":\"$APP_ID\"}" >/dev/null 2>&1
+step 4 "Removing the app (this takes up to 2 minutes)"
+luna-send -n 1 -w 3000 luna://com.webos.applicationManager/closeByAppId "{\"id\":\"$APP_ID\"}" </dev/null >/dev/null 2>&1
 pkill -f "services/$SERVICE_ID" 2>/dev/null
 
 # Is the app still known to the TV? Only trusts a real answer from the TV.
 #   0 = still installed, 1 = gone, 2 = the TV didn't answer
 app_listed() {
-  out=$(luna-send -n 1 -w 8000 luna://com.webos.applicationManager/dev/listApps '{}' 2>/dev/null)
+  out=$(luna-send -n 1 -w 8000 luna://com.webos.applicationManager/dev/listApps '{}' </dev/null 2>/dev/null)
   echo "$out" | grep -q '"returnValue": *true' || return 2
   echo "$out" | grep -q "\"$APP_ID\"" && return 0
   return 1
 }
 
-# LG's own uninstaller runs in the background: start it, then wait for it
-# to finish. The app's files must stay in place until it is done.
+# LG's own uninstaller runs in the background: ask it, then wait until the
+# TV no longer lists the app. It can ignore a request while it is busy (for
+# example just after the TV starts), so ask again, up to 3 times.
+# The app's files must stay in place until it is done.
 app_listed; state=$?
-if [ $state -ne 1 ]; then
-  luna-send -n 1 -w 30000 luna://com.webos.appInstallService/dev/remove "{\"id\":\"$APP_ID\"}" >/dev/null 2>&1
+attempt=1
+while [ $state -ne 1 ]; do
+  luna-send -n 1 -w 30000 luna://com.webos.appInstallService/dev/remove "{\"id\":\"$APP_ID\"}" </dev/null >/tmp/opentvlauncher-remove.txt 2>&1
   i=0
   while :; do
     sleep 2
     app_listed; state=$?
     [ $state -eq 1 ] && break
-    i=$((i + 1))
-    [ $i -ge 30 ] && break
+    i=$((i + 1)); [ $i -ge 15 ] && break
   done
-fi
-[ $state -eq 1 ] || fail "The TV is still removing the app. Wait a minute and run this again."
+  [ $state -eq 1 ] && break
+  if [ $attempt -ge 3 ]; then
+    echo ""
+    cat /tmp/opentvlauncher-remove.txt
+    fail "The TV did not remove the app (details above). Restart the TV and run this again."
+  fi
+  warn "The TV's installer is busy. Asking again in 10 seconds (attempt $((attempt + 1)) of 3)"
+  attempt=$((attempt + 1))
+  sleep 10
+done
+rm -f /tmp/opentvlauncher-remove.txt
 ok "The TV removed the app"
 
 # Leftovers (only after LG's uninstaller is done)
 rm -rf "$APPS/applications/$APP_ID" "$APPS/packages/$APP_ID" "$APPS/services/$SERVICE_ID"
 ls-control scan-services >/dev/null 2>&1
 [ -d "$APPS/applications/$APP_ID" ] && fail "App files are still in $APPS/applications/$APP_ID"
-if luna-send -n 1 -w 8000 luna://com.webos.applicationManager/listLaunchPoints '{}' 2>/dev/null | grep -q "\"$APP_ID\""; then
+if luna-send -n 1 -w 8000 luna://com.webos.applicationManager/listLaunchPoints '{}' </dev/null 2>/dev/null | grep -q "\"$APP_ID\""; then
   fail "The app's icon is still on the TV. Restart the TV and run this again."
 fi
 ok "App, icon and background service removed"
@@ -94,7 +127,7 @@ echo ""
 echo "=============================================="
 echo "  Done! OpenTV Launcher is uninstalled and verified."
 echo ""
-echo "  Press Home on the remote: LG's own home is back."
+echo "  LG's own home is back on screen."
 echo "  The Homebrew Channel and root access were not touched."
 echo "=============================================="
 echo ""
