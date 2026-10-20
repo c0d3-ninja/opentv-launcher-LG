@@ -16,7 +16,7 @@
 var LAUNCHER_CONFIG = {
   profileInitial: "V",
 
-  /* LG's own apps are hidden except these (HDMI inputs always show) */
+  /* LG apps that stay visible when "Hide LG TV apps" is on (HDMI inputs always stay) */
   showLgApps: ["com.webos.app.browser", "com.webos.app.discovery"],
 
   dock: [

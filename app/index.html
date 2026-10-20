@@ -19,6 +19,9 @@
       <button class="top-btn" id="btnSettings" aria-label="Settings">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.32 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
       </button>
+      <button class="top-btn" id="btnRestart" aria-label="Restart TV">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12a8 8 0 1 1-2.34-5.66"/><polyline points="20 4 20 9 15 9"/></svg>
+      </button>
       <button class="top-btn" id="btnNotif" aria-label="Notifications">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
       </button>
@@ -32,9 +35,45 @@
       <button class="top-btn" id="btnSearch" aria-label="Search">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="21" y2="21"/></svg>
       </button>
+      <div class="ls-wrap">
+        <button class="top-btn" id="btnLauncherSettings" aria-label="Launcher settings">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="17" x2="20" y2="17"/><circle cx="9" cy="7" r="2.5" fill="currentColor"/><circle cx="15" cy="17" r="2.5" fill="currentColor"/></svg>
+        </button>
+        <div id="lsMenu" aria-hidden="true">
+          <div class="ls-title">Launcher Settings</div>
+          <div class="ls-row" id="lsShowLg" role="switch" aria-checked="false">
+            <div class="ls-text">
+              <div class="ls-label">Hide LG TV apps</div>
+              <div class="ls-hint">Keeps only Browser, Apps and HDMI from LG</div>
+            </div>
+            <div class="ls-switch"><div class="ls-knob"></div></div>
+          </div>
+          <div class="ls-row" id="lsShowPerf" role="switch" aria-checked="false">
+            <div class="ls-text">
+              <div class="ls-label">Show performance</div>
+              <div class="ls-hint">Memory and storage on the home screen</div>
+            </div>
+            <div class="ls-switch"><div class="ls-knob"></div></div>
+          </div>
+        </div>
+      </div>
       <div id="profile">V</div>
     </div>
   </header>
+
+  <section id="perf" class="loading" aria-hidden="true">
+    <div class="pf-title">TV Performance</div>
+    <div class="pf-item">
+      <div class="pf-head"><span class="pf-name">Memory (RAM)</span><span class="pf-val" id="pfMemVal">--</span></div>
+      <div class="pf-bar"><div class="pf-fill" id="pfMemBar"></div></div>
+      <div class="pf-sub" id="pfMemSub">&nbsp;</div>
+    </div>
+    <div class="pf-item">
+      <div class="pf-head"><span class="pf-name">Storage for apps</span><span class="pf-val" id="pfDiskVal">--</span></div>
+      <div class="pf-bar"><div class="pf-fill" id="pfDiskBar"></div></div>
+      <div class="pf-sub" id="pfDiskSub">&nbsp;</div>
+    </div>
+  </section>
 
   <section id="heroText">
     <div id="heroLabel" class="hero-label"></div>
@@ -58,11 +97,13 @@
       </div>
       <div class="rc-row" id="rcRow" role="list"></div>
       <div class="rc-empty">No recent apps</div>
+      <div class="spinner rc-spinner"></div>
     </div>
   </div>
 
   <div id="toast" role="status" aria-live="polite"></div>
 </div>
+<script src="boot.js"></script>
 <script src="apps.js"></script>
 <script src="installed.js"></script>
 <script src="launcher.js"></script>

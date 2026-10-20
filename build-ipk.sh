@@ -13,6 +13,13 @@ SVC="$ID.service"
 mkdir -p "$B/data/usr/palm/applications/$ID" "$B/data/usr/palm/packages/$ID" "$B/data/usr/palm/services/$SVC" "$B/ctl"
 cp -R app/. "$B/data/usr/palm/applications/$ID/"
 cp -R service/. "$B/data/usr/palm/services/$SVC/"
+# Files the TV creates at run time are never packed
+rm -rf "$B/data/usr/palm/applications/$ID/installed.js" "$B/data/usr/palm/applications/$ID/installed.js.tmp" \
+       "$B/data/usr/palm/applications/$ID/icons" "$B/data/usr/palm/applications/$ID/recents"
+# Catch JavaScript mistakes before they reach the TV
+if command -v node >/dev/null 2>&1; then
+  for f in app/*.js service/*.js; do node --check "$f" || { echo "Syntax error in $f"; exit 1; }; done
+fi
 cat > "$B/data/usr/palm/packages/$ID/packageinfo.json" <<EOF
 {
   "id": "$ID",
@@ -40,4 +47,6 @@ printf '2.0\n' > "$B/debian-binary"
 mkdir -p dist
 rm -f "$OUT"
 (cd "$B" && ar rc "$OLDPWD/$OUT" debian-binary control.tar.gz data.tar.gz)
+# The installer reads this to find the newest IPK
+basename "$OUT" > dist/latest.txt
 echo "$OUT"

@@ -83,11 +83,12 @@ open_and_hold() {
   done
 }
 
-# True if the most recent launch of LG's home came from our "LG Home" button,
-# or from a double Back press (LG's open apps view).
+# True if the most recent launch of LG's home came from our "LG Home" button.
+# (Back inside an app also sends you to LG's home, via "last_input_handler";
+# that is replaced with the launcher like the Home button.)
 home_opened_by_us() {
   grep "NL_APP_LAUNCH_BEGIN {\"app_id\":\"$LG_HOME\"" /var/log/messages 2>/dev/null | tail -n 1 |
-    grep -q -e "\"caller_id\":\"$APP_ID" -e last_input_handler
+    grep -q "\"caller_id\":\"$APP_ID"
 }
 
 # Home button, fast path: the system log records LG's home being launched
@@ -101,8 +102,6 @@ watch_home_log() {
         *NL_APP_LAUNCH_BEGIN*"\"app_id\":\"$LG_HOME\""*)
           case "$line" in
             *"\"caller_id\":\"$APP_ID"*) echo "$(date) LG home opened from launcher, leaving it" ;;
-            # Back pressed twice: LG's open apps view (sent by the TV itself)
-            *last_input_handler*) echo "$(date) LG open apps (double Back), leaving it" ;;
             *) echo "$(date) home button -> launcher"; open_launcher & ;;
           esac
           ;;

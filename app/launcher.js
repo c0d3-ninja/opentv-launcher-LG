@@ -20,21 +20,41 @@
   var bridges = [];
 
   /* ---------- webOS Luna calls ---------- */
-  function luna(uri, params, cb) {
+  /* One Luna call. The callback always runs exactly once: with the reply,
+     or with an error after a timeout (default 15 s), so nothing can hang. */
+  function luna(uri, params, cb, timeoutMs) {
+    var done = false;
+    function finish(res) {
+      if (done) return;
+      done = true;
+      if (cb) cb(res);
+    }
     if (typeof window.PalmServiceBridge === "undefined") {
-      if (cb) cb({ returnValue: false, errorText: "preview" });
+      finish({ returnValue: false, errorText: "preview" });
       return;
     }
-    var b = new window.PalmServiceBridge();
+    var b;
+    try { b = new window.PalmServiceBridge(); }
+    catch (e) { finish({ returnValue: false, errorText: "no service bridge" }); return; }
     bridges.push(b);
-    b.onservicecallback = function (msg) {
-      var res = {};
-      try { res = JSON.parse(msg); } catch (e) { res = { returnValue: false }; }
+    function release() {
       var idx = bridges.indexOf(b);
       if (idx >= 0) bridges.splice(idx, 1);
-      if (cb) cb(res);
+    }
+    var timer = setTimeout(function () {
+      release();
+      try { b.cancel(); } catch (e) {}
+      finish({ returnValue: false, errorText: "timed out" });
+    }, timeoutMs || 15000);
+    b.onservicecallback = function (msg) {
+      clearTimeout(timer);
+      release();
+      var res;
+      try { res = JSON.parse(msg); } catch (e) { res = { returnValue: false, errorText: "bad reply" }; }
+      finish(res);
     };
-    b.call(uri, JSON.stringify(params || {}));
+    try { b.call(uri, JSON.stringify(params || {})); }
+    catch (e) { clearTimeout(timer); release(); finish({ returnValue: false, errorText: String(e && e.message || e) }); }
   }
 
   function resolveId(app) {
@@ -55,7 +75,7 @@
     var p = { id: id };
     if (app.params) p.params = app.params;
     luna("luna://com.webos.applicationManager/launch", p, function (res) {
-      if (!res || res.returnValue === false) toast("Couldn't open " + app.name);
+      if (!res || res.returnValue === false) toast("Couldn't open " + app.name, true);
     });
   }
 
@@ -89,6 +109,7 @@
     if (app.iconUrl) {
       var img = document.createElement("img");
       img.alt = "";
+      img.decoding = "async";
       img.src = app.iconUrl;
       /* If the image is from listLaunchPoints, it already has its own background,
          so let it fill the tile edge-to-edge for a cleaner look. */
@@ -117,19 +138,32 @@
 
     if (installed && !resolveId(app)) tile.className += " missing";
 
+    var holdTimer = null, held = false;
     tile.addEventListener("mouseenter", function () { setFocus(r, c); });
-    tile.addEventListener("click", function () { setFocus(r, c); launch(app); });
+    tile.addEventListener("mousedown", function () {
+      held = false;
+      holdTimer = setTimeout(function () { held = true; setFocus(r, c); enterEdit(); }, LONG_PRESS_MS);
+    });
+    tile.addEventListener("mouseup", function () { clearTimeout(holdTimer); });
+    tile.addEventListener("mouseleave", function () { clearTimeout(holdTimer); });
+    tile.addEventListener("click", function () {
+      if (held) { held = false; return; }
+      setFocus(r, c); launch(app);
+    });
     return tile;
   }
 
   function render() {
     for (var r = 0; r < rows.length; r++) {
       var el = rowEls[r];
-      while (el.firstChild) el.removeChild(el.firstChild);
-      for (var c = 0; c < rows[r].length; c++) {
-        el.appendChild(buildTile(rows[r][c], r, c));
-      }
+      /* Build off-screen, then swap in one go (one layout instead of many) */
+      var frag = document.createDocumentFragment();
+      for (var c = 0; c < rows[r].length; c++) frag.appendChild(buildTile(rows[r][c], r, c));
+      el.textContent = "";
+      el.appendChild(frag);
     }
+    colsCache = 0;
+    document.body.classList.remove("apps-loading");
     setFocus(focus.row, focus.col);
   }
 
@@ -174,9 +208,11 @@
   var topBtns = [
     /* In screen order, left to right */
     document.getElementById("btnSettings"),
+    document.getElementById("btnRestart"),
     document.getElementById("btnNotif"),
     document.getElementById("btnLgHome"),
     document.getElementById("btnSearch"),
+    document.getElementById("btnLauncherSettings"),
     document.getElementById("profile")
   ];
   var topBarActions = {
@@ -208,13 +244,15 @@
   function launchTopBtn() {
     var btn = topBtns[topFocus];
     if (!btn) return;
+    if (btn.id === "btnLauncherSettings") { openLauncherSettings(); return; }
+    if (btn.id === "btnRestart") { askRestart(); return; }
     var appId = topBarActions[btn.id];
     if (appId) {
       if (typeof window.PalmServiceBridge === "undefined") {
         toast("Would open " + (btn.getAttribute("aria-label") || btn.id));
       } else {
         luna("luna://com.webos.applicationManager/launch", { id: appId }, function (res) {
-          if (!res || res.returnValue === false) toast("Couldn't open " + btn.id);
+          if (!res || res.returnValue === false) toast("Couldn't open " + (btn.getAttribute("aria-label") || btn.id), true);
         });
       }
     }
@@ -225,6 +263,198 @@
     btn.addEventListener("mouseenter", function () { setTopFocus(idx); });
     btn.addEventListener("click", function () { setTopFocus(idx); launchTopBtn(); });
   });
+
+  /* ---------- Launcher settings (dropdown next to Search) ----------
+     Saved on the TV by the service (survives reinstalls), with a local
+     copy for an instant start. */
+  var settings = { showLgApps: true, showPerformance: false };
+  try {
+    var saved = JSON.parse(localStorage.getItem("opentv.settings") || "null");
+    if (saved && typeof saved === "object") for (var sk in saved) settings[sk] = saved[sk];
+  } catch (e) {}
+  var lsMenu = document.getElementById("lsMenu");
+  var lsShowLg = document.getElementById("lsShowLg");
+  var lsShowPerf = document.getElementById("lsShowPerf");
+  var lsRows = [lsShowLg, lsShowPerf];
+  var lsRow = 0;
+  var lsOpen = false;
+
+  function drawSettings() {
+    /* The switch reads "Hide LG TV apps", so it is on when they are hidden */
+    lsShowLg.setAttribute("aria-checked", settings.showLgApps ? "false" : "true");
+    lsShowPerf.setAttribute("aria-checked", settings.showPerformance ? "true" : "false");
+    document.body.classList.toggle("perf-on", !!settings.showPerformance);
+    updatePerfTimer();
+  }
+
+  function lsFocusRow(i) {
+    lsRow = Math.max(0, Math.min(lsRows.length - 1, i));
+    lsRows.forEach(function (r, k) { r.classList.toggle("focused", k === lsRow); });
+  }
+
+  /* Settings live in a file on the TV (via the service), so they survive
+     restarts and reinstalls. If a save fails (for example right after a
+     restart, while the service is still getting root), it is kept as
+     "unsaved" and retried until the service confirms it, and the values
+     from the file never overwrite an unsaved change. */
+  var settingsDirty = false;
+  try { settingsDirty = localStorage.getItem("opentv.settingsDirty") === "1"; } catch (e) {}
+  var settingsRetry = null;
+
+  function markDirty(on) {
+    settingsDirty = on;
+    try { localStorage.setItem("opentv.settingsDirty", on ? "1" : "0"); } catch (e) {}
+  }
+
+  function saveSettings() {
+    try { localStorage.setItem("opentv.settings", JSON.stringify(settings)); } catch (e) {}
+    markDirty(true);
+    pushSettings();
+  }
+
+  function pushSettings() {
+    clearTimeout(settingsRetry);
+    var sent = JSON.stringify(settings);
+    luna(SERVICE + "/settings", { set: settings }, function (res) {
+      if (res && res.returnValue) {
+        /* Only clear if nothing changed while saving */
+        if (JSON.stringify(settings) === sent) markDirty(false);
+        return;
+      }
+      settingsRetry = setTimeout(pushSettings, 3000);
+    }, 10000);
+  }
+
+  function loadSettings(tries) {
+    if (settingsDirty) { pushSettings(); return; }
+    luna(SERVICE + "/settings", {}, function (res) {
+      if (!res || !res.returnValue || !res.settings) {
+        /* Service not ready yet (TV just started): try again */
+        if ((tries || 0) < 10) settingsRetry = setTimeout(function () { loadSettings((tries || 0) + 1); }, 3000);
+        return;
+      }
+      if (settingsDirty) { pushSettings(); return; }
+      var changed = false;
+      for (var k in res.settings) {
+        if (settings[k] !== res.settings[k]) { settings[k] = res.settings[k]; changed = true; }
+      }
+      if (!changed) return;
+      try { localStorage.setItem("opentv.settings", JSON.stringify(settings)); } catch (e) {}
+      drawSettings();
+      if (window.INSTALLED_APPS && window.INSTALLED_APPS.length) applyInstalled(window.INSTALLED_APPS);
+    }, 10000);
+  }
+
+  function openLauncherSettings() {
+    lsOpen = true;
+    drawSettings();
+    lsFocusRow(0);
+    lsMenu.classList.add("open");
+    lsMenu.setAttribute("aria-hidden", "false");
+  }
+
+  function closeLauncherSettings() {
+    if (!lsOpen) return;
+    lsOpen = false;
+    lsMenu.classList.remove("open");
+    lsMenu.setAttribute("aria-hidden", "true");
+    lsRows.forEach(function (r) { r.classList.remove("focused"); });
+  }
+
+  function toggleShowLg() {
+    settings.showLgApps = !settings.showLgApps;
+    drawSettings();
+    saveSettings();
+    if (window.INSTALLED_APPS && window.INSTALLED_APPS.length) applyInstalled(window.INSTALLED_APPS);
+    /* applyInstalled re-renders and moves focus to the rows; keep the top bar */
+    setTopFocus(topBtns.indexOf(document.getElementById("btnLauncherSettings")));
+    toast(settings.showLgApps ? "LG TV apps shown" : "LG TV apps hidden");
+  }
+
+  function toggleShowPerf() {
+    settings.showPerformance = !settings.showPerformance;
+    drawSettings();
+    saveSettings();
+  }
+
+  function settingsKey(code) {
+    switch (code) {
+      case KEY.ENTER:
+        if (lsRow === 0) toggleShowLg(); else toggleShowPerf();
+        break;
+      case KEY.UP:
+        if (lsRow > 0) lsFocusRow(lsRow - 1); else closeLauncherSettings();
+        break;
+      case KEY.DOWN:
+        lsFocusRow(lsRow + 1);
+        break;
+      case KEY.BACK:
+      case KEY.ESC:
+      case KEY.BACKSPACE:
+      case KEY.LEFT:
+      case KEY.RIGHT:
+        closeLauncherSettings(); break;
+      default: return false;
+    }
+    return true;
+  }
+
+  lsShowLg.addEventListener("click", function (e) { e.stopPropagation(); lsFocusRow(0); toggleShowLg(); });
+  lsShowPerf.addEventListener("click", function (e) { e.stopPropagation(); lsFocusRow(1); toggleShowPerf(); });
+  lsShowLg.addEventListener("mouseenter", function () { lsFocusRow(0); });
+  lsShowPerf.addEventListener("mouseenter", function () { lsFocusRow(1); });
+
+  /* ---------- Performance panel ---------- */
+  var perfTimer = null;
+
+  function fmtKB(kb) {
+    var gb = kb / 1048576;
+    return gb >= 1 ? gb.toFixed(1) + " GB" : Math.round(kb / 1024) + " MB";
+  }
+
+  function setBar(id, pct) {
+    var el = document.getElementById(id);
+    pct = Math.max(0, Math.min(100, pct));
+    el.style.transform = "scaleX(" + (pct / 100) + ")";
+    el.classList.toggle("warn", pct >= 70 && pct < 90);
+    el.classList.toggle("high", pct >= 90);
+  }
+
+  function setText(id, t) { var el = document.getElementById(id); if (el.textContent !== t) el.textContent = t; }
+
+  function showStats(st) {
+    document.getElementById("perf").classList.remove("loading");
+    if (st.mem && st.mem.total) {
+      var mp = Math.round(100 * st.mem.used / st.mem.total);
+      setText("pfMemVal", mp + "%");
+      setBar("pfMemBar", mp);
+      setText("pfMemSub", fmtKB(st.mem.used) + " used of " + fmtKB(st.mem.total) + " \u00b7 " + fmtKB(st.mem.total - st.mem.used) + " free");
+    }
+    if (st.storage && st.storage.total) {
+      var used = st.storage.total - st.storage.free;
+      var dp = Math.round(100 * used / st.storage.total);
+      setText("pfDiskVal", dp + "%");
+      setBar("pfDiskBar", dp);
+      setText("pfDiskSub", fmtKB(st.storage.free) + " free of " + fmtKB(st.storage.total));
+    }
+  }
+
+  function pollStats() {
+    if (typeof window.PalmServiceBridge === "undefined") {
+      var t = Date.now() / 1000;
+      showStats({ mem: { total: 2030540, used: 1400000 + 50000 * Math.sin(t) }, storage: { total: 2820468, free: 993756 } });
+      return;
+    }
+    luna(SERVICE + "/stats", {}, function (res) { if (res && res.returnValue) showStats(res); });
+  }
+
+  /* Poll only while the panel is on and the launcher is on screen */
+  function updatePerfTimer() {
+    var want = settings.showPerformance && !document.hidden;
+    if (want && !perfTimer) { pollStats(); perfTimer = setInterval(pollStats, 5000); /* every 5 seconds */ }
+    if (!want && perfTimer) { clearInterval(perfTimer); perfTimer = null; }
+  }
+  drawSettings();
 
   /* ---------- Focus management ---------- */
   function setFocus(r, c) {
@@ -263,7 +493,15 @@
     document.getElementById("rows").style.transform = "translate3d(0," + (-shift) + "px,0)";
   }
 
+  /* Tiles per line in All Apps. Measured once after each render/resize
+     instead of on every key press. */
+  var colsCache = 0;
   function moreColumns() {
+    if (colsCache) return colsCache;
+    colsCache = measureColumns();
+    return colsCache;
+  }
+  function measureColumns() {
     var el = rowEls[1];
     if (el.children.length < 2) return el.children.length || 1;
     var top = el.children[0].offsetTop;
@@ -327,15 +565,20 @@
     rc.part = "card";
     rcEl.classList.add("open");
     rcEl.setAttribute("aria-hidden", "false");
+    rcEl.classList.add("loading");
+    rc.items = [];
     drawRecents();
     if (typeof window.PalmServiceBridge === "undefined") {
       rc.items = (rows[0] || []).slice(0, 5).map(function (a) { return { id: a.ids[0], title: a.name, image: "" }; });
+      rcEl.classList.remove("loading");
       rc.part = "card";
       drawRecents();
       return;
     }
     luna(SERVICE + "/recents", {}, function (res) {
       if (!rc.open) return;
+      rcEl.classList.remove("loading");
+      if (!res || !res.returnValue) toast("Couldn't load Recent Lists", true);
       rc.items = (res && res.recents) || [];
       rc.part = "card";
       drawRecents();
@@ -363,6 +606,7 @@
       if (it.image) {
         var img = document.createElement("img");
         img.className = "rc-shot";
+        img.onerror = function () { img.style.visibility = "hidden"; };
         img.src = it.image;
         box.appendChild(img);
       } else if (app && app.iconUrl) {
@@ -478,11 +722,195 @@
     return true;
   }
 
+  var lastMoveAt = 0;
+
+  /* ---------- Delete apps, like LG's home: hold OK on an app ----------
+     The app lifts and a Delete button appears above it. Up selects it, OK
+     asks "Delete <app>?" in a popup, Back leaves edit mode. */
+  var LONG_PRESS_MS = 650;
+  var ed = { on: false, onX: false, app: null, tile: null, busy: false };
+  var pressTimer = null;
+  var pressHandled = false;
+
+  function appRemovable(app) {
+    var info = installed && installed[resolveId(app)];
+    return !!(info && info.removable);
+  }
+
+  function enterEdit() {
+    if (topFocus >= 0 || !rows[focus.row] || !rows[focus.row][focus.col]) return;
+    var app = rows[focus.row][focus.col];
+    if (!appRemovable(app)) {
+      toast(app.name + " is part of the TV and can't be deleted");
+      return;
+    }
+    ed.on = true;
+    ed.onX = false;
+    ed.app = app;
+    ed.tile = rowEls[focus.row].children[focus.col];
+    if (!ed.tile.querySelector(".tile-x")) {
+      var x = document.createElement("div");
+      x.className = "tile-x";
+      x.innerHTML = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16"/><path d="M9 7V4h6v3"/><path d="M6 7l1 13h10l1-13"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg><span>Delete</span>';
+      x.addEventListener("click", function (e) { e.stopPropagation(); askDelete(); });
+      ed.tile.appendChild(x);
+    }
+    ed.tile.classList.add("editing");
+    ed.tile.classList.remove("x-focused");
+  }
+
+  function exitEdit() {
+    if (!ed.on || ed.busy) return;
+    ed.on = false;
+    if (ed.tile) ed.tile.classList.remove("editing", "x-focused");
+    ed.tile = null;
+  }
+
+  function editKey(e) {
+    if (e.repeat) return true;          /* OK still held from the long press */
+    if (ed.busy) return true;           /* popup open or deleting */
+    switch (e.keyCode) {
+      case KEY.UP:
+        ed.onX = true; ed.tile.classList.add("x-focused"); break;
+      case KEY.DOWN:
+        ed.onX = false; ed.tile.classList.remove("x-focused"); break;
+      case KEY.ENTER:
+        if (ed.onX) askDelete(); else exitEdit();
+        break;
+      case KEY.BACK:
+      case KEY.ESC:
+      case KEY.BACKSPACE:
+        exitEdit(); break;
+      case KEY.LEFT:
+      case KEY.RIGHT:
+        exitEdit(); return false;       /* leave edit mode and move as usual */
+      default: return false;
+    }
+    return true;
+  }
+
+  /* ----- Delete: LG's own confirmation popup (native webOS alert) -----
+     The service shows the popup and reports back: asking, deleting, then
+     done / cancelled / error. */
+  function setDeleting(tile, on) {
+    var x = tile && tile.querySelector(".tile-x span");
+    if (tile) tile.classList.toggle("deleting", on);
+    if (x) x.textContent = on ? "Deleting\u2026" : "Delete";
+  }
+
+  function finishDelete(res) {
+    var app = ed.app, tile = ed.tile;
+    ed.busy = false;
+    clearTimeout(ed.waitTimer);
+    setDeleting(tile, false);
+    if (res.state === "done") {
+      exitEdit();
+      if (tile) tile.classList.add("removing");
+      toast(app.name + " deleted");
+      refreshApps(true);
+    } else if (res.state === "cancelled") {
+      exitEdit();
+    } else {
+      exitEdit();
+      toast(res.errorText || ("Couldn't delete " + app.name), true);
+    }
+  }
+
+  function startDelete() {
+    setDeleting(ed.tile, true);
+    if (typeof window.PalmServiceBridge === "undefined") {
+      setTimeout(function () { finishDelete({ state: "done" }); }, 1200);
+      return;
+    }
+    luna(SERVICE + "/uninstall", { id: resolveId(ed.app) }, function (res) {
+      finishDelete(res && res.returnValue ? { state: "done" } : { state: "error", errorText: res && res.errorText });
+    }, 70000);
+  }
+
+  /* Show LG's popup. Its buttons reopen this app with the answer
+     (see handleDeleteAnswer). */
+  function askDelete() {
+    if (!ed.on || ed.busy) return;
+    ed.busy = true;
+    if (typeof window.PalmServiceBridge === "undefined") { startDelete(); return; }
+    luna(SERVICE + "/askDelete", { id: resolveId(ed.app), name: ed.app.name }, function (res) {
+      if (!res || !res.returnValue) {
+        finishDelete({ state: "error", errorText: (res && res.errorText) || "Couldn't show the popup" });
+        return;
+      }
+      /* No answer in 5 minutes: give up quietly */
+      ed.waitTimer = setTimeout(function () { finishDelete({ state: "cancelled" }); }, 300000);
+    });
+  }
+
+  /* ----- Restart the TV (button next to Settings) ----- */
+  function askRestart() {
+    if (typeof window.PalmServiceBridge === "undefined") { toast("Preview: restart popup"); return; }
+    luna(SERVICE + "/askRestart", {}, function (res) {
+      if (!res || !res.returnValue) toast((res && res.errorText) || "Couldn't show the popup", true);
+    });
+  }
+
+  function doRestart() {
+    toast("Restarting the TV\u2026");
+    luna(SERVICE + "/restart", {}, function (res) {
+      if (!res || !res.returnValue) toast((res && res.errorText) || "Couldn't restart the TV", true);
+    }, 30000);
+  }
+
+  /* Reopened by one of LG's popups:
+       params.opentvDelete = { id, answer }   (delete an app)
+       params.opentvRestart = true            (restart the TV) */
+  function handleDeleteAnswer() {
+    var p = {};
+    try { p = JSON.parse(window.PalmSystem.launchParams || "{}") || {}; } catch (e) {}
+    if (p.opentvRestart) {
+      try { window.PalmSystem.launchParams = "{}"; } catch (e) {}
+      doRestart();
+      return true;
+    }
+    var d = p.opentvDelete;
+    if (!d) return false;
+    try { window.PalmSystem.launchParams = "{}"; } catch (e) {}
+    if (!ed.on || !ed.busy || resolveId(ed.app) !== d.id) return true;
+    clearTimeout(ed.waitTimer);
+    if (d.answer === "delete") startDelete();
+    else finishDelete({ state: "cancelled" });
+    return true;
+  }
+
+  /* OK on a tile: open on release, or edit mode if held */
+  function tileEnterDown(e) {
+    if (e.repeat || pressTimer) return;
+    pressHandled = false;
+    pressTimer = setTimeout(function () {
+      pressTimer = null;
+      pressHandled = true;
+      enterEdit();
+    }, LONG_PRESS_MS);
+  }
+
+  document.addEventListener("keyup", function (e) {
+    if (e.keyCode !== KEY.ENTER) return;
+    if (pressTimer) {
+      clearTimeout(pressTimer);
+      pressTimer = null;
+      if (!pressHandled && !ed.on && topFocus < 0) launch(rows[focus.row][focus.col]);
+    }
+  });
+
   /* ---------- Input ---------- */
   document.addEventListener("keydown", function (e) {
     if (rc.open) {
       if (recentsKey(e.keyCode)) e.preventDefault();
       return;
+    }
+    if (lsOpen) {
+      if (settingsKey(e.keyCode)) e.preventDefault();
+      return;
+    }
+    if (ed.on) {
+      if (editKey(e)) { e.preventDefault(); return; }
     }
     if (e.keyCode === KEY.BACK || e.keyCode === KEY.ESC || e.keyCode === KEY.BACKSPACE) {
       var now = Date.now();
@@ -494,14 +922,22 @@
       }
       lastBack = now;
     }
+    /* Holding an arrow: one step every 110 ms, so the animation keeps up */
+    if (e.repeat && e.keyCode >= KEY.LEFT && e.keyCode <= KEY.DOWN) {
+      var t = Date.now();
+      if (t - lastMoveAt < 110) { e.preventDefault(); return; }
+      lastMoveAt = t;
+    } else if (e.keyCode >= KEY.LEFT && e.keyCode <= KEY.DOWN) {
+      lastMoveAt = Date.now();
+    }
     switch (e.keyCode) {
       case KEY.LEFT:  move("left");  break;
       case KEY.RIGHT: move("right"); break;
       case KEY.UP:    move("up");    break;
       case KEY.DOWN:  move("down");  break;
       case KEY.ENTER:
-        if (topFocus >= 0) { launchTopBtn(); }
-        else { launch(rows[focus.row][focus.col]); }
+        if (topFocus >= 0) { if (!e.repeat) launchTopBtn(); }
+        else { tileEnterDown(e); }
         break;
       case KEY.BACK:
       case KEY.ESC:
@@ -518,13 +954,18 @@
      sends this event; the app must bring itself to the front. */
   document.addEventListener("webOSRelaunch", function () {
     try { if (window.PalmSystem && window.PalmSystem.activate) window.PalmSystem.activate(); } catch (e) {}
+    /* Answer from the delete popup: stay where we are */
+    if (handleDeleteAnswer()) return;
     closeRecents();
+    closeLauncherSettings();
+    exitEdit();
     goHome();
     refreshApps();
   });
   document.addEventListener("visibilitychange", function () {
-    if (!document.hidden) { updateClock(); goHome(); refreshApps(); }
-    else closeRecents();
+    updatePerfTimer();
+    if (!document.hidden) { updateClock(); goHome(); refreshApps(); loadSettings(); }
+    else { closeRecents(); closeLauncherSettings(); if (!ed.busy) exitEdit(); }
   });
 
   /* ---------- Clock, toast, scaling ---------- */
@@ -539,28 +980,31 @@
   }
 
   var toastTimer = null;
-  function toast(text) {
+  function toast(text, isError) {
     var t = document.getElementById("toast");
     t.textContent = text;
+    t.classList.toggle("error", !!isError);
     t.classList.add("show");
     clearTimeout(toastTimer);
     toastTimer = setTimeout(function () { t.classList.remove("show"); }, 2600);
   }
 
+  /* The design is 1920x1080. Scale it to fit the screen, then let the stage
+     fill any leftover space (4:3, 21:9, ...) so there are no black bars:
+     the banner, top bar and panels stretch, the rows stay in place. */
+  var stageW = 1920;
   function fit() {
-    var s = Math.min(window.innerWidth / 1920, window.innerHeight / 1080);
+    var w = window.innerWidth, h = window.innerHeight;
+    var s = Math.min(w / 1920, h / 1080);
     var stage = document.getElementById("stage");
-    if (Math.abs(s - 1) < 0.01) {
-      stage.style.transform = "";
-      stage.style.left = "0px";
-      stage.style.top = "0px";
-    } else {
-      stage.style.transform = "scale(" + s + ")";
-      stage.style.left = (window.innerWidth - 1920 * s) / 2 + "px";
-      stage.style.top = (window.innerHeight - 1080 * s) / 2 + "px";
-    }
+    stageW = Math.round(w / s);
+    stage.style.width = stageW + "px";
+    stage.style.height = Math.round(h / s) + "px";
+    stage.style.left = "0px";
+    stage.style.top = "0px";
+    stage.style.transform = Math.abs(s - 1) < 0.001 ? "" : "scale(" + s + ")";
   }
-  window.addEventListener("resize", fit);
+  window.addEventListener("resize", function () { fit(); colsCache = 0; });
 
   /* ---------- Discover installed apps ---------- */
 
@@ -577,9 +1021,11 @@
    * list: [{ id, title, color, icon }] written by sync-icons.js on the TV
    * (window.INSTALLED_APPS), or launch points from Luna as a fallback.
    */
-  /* LG's built-in apps are hidden, except the ones listed in apps.js (showLgApps)
-     and HDMI inputs. */
+  /* "Hide LG TV apps" off (default): every app is shown. On: LG's built-in
+     apps are hidden, except the ones listed in apps.js (showLgApps: Browser
+     and Apps) and HDMI inputs. */
   function isHiddenLg(id) {
+    if (settings.showLgApps) return false;
     var keep = cfg.showLgApps || [];
     if (keep.indexOf(id) >= 0) return false;
     if (/^com\.webos\.app\.hdmi\d$/.test(id)) return false;
@@ -649,8 +1095,12 @@
   }
 
   var refreshing = false;
-  function refreshApps() {
+  var lastRefresh = 0;
+  /* force: after an uninstall. Otherwise at most once every 3 seconds. */
+  function refreshApps(force) {
     if (refreshing) return;
+    if (!force && Date.now() - lastRefresh < 3000) return;
+    lastRefresh = Date.now();
     refreshing = true;
     luna(SERVICE + "/apps", {}, function (res) {
       refreshing = false;
@@ -680,11 +1130,39 @@
     });
   }
 
+  /* Placeholder tiles while the app list is loading (first start after
+     installing, before any icons were copied) */
+  function renderSkeleton() {
+    document.body.classList.add("apps-loading");
+    [6, 10].forEach(function (n, r) {
+      var frag = document.createDocumentFragment();
+      for (var i = 0; i < n; i++) {
+        var t = document.createElement("div");
+        t.className = "tile skeleton";
+        t.innerHTML = '<div class="tile-box"></div><div class="tile-name"></div>';
+        frag.appendChild(t);
+      }
+      rowEls[r].textContent = "";
+      rowEls[r].appendChild(frag);
+    });
+  }
+
   /* ---------- Start ---------- */
   document.getElementById("profile").textContent = cfg.profileInitial || "";
   fit();
   updateClock();
-  setInterval(updateClock, 10000);
-  render();
-  loadInstalled();
+  setInterval(function () { if (!document.hidden) updateClock(); }, 10000);
+  if (window.INSTALLED_APPS && window.INSTALLED_APPS.length) {
+    loadInstalled();
+  } else {
+    renderSkeleton();
+    loadInstalled();
+    /* Still nothing after 8 seconds: show the apps from apps.js */
+    setTimeout(function () {
+      if (!installed) { rows = freshRows(); render(); }
+    }, 8000);
+  }
+  loadSettings();
+  /* boot.js: started fine, no fallback to LG's home needed */
+  window.__launcherReady = true;
 })();
