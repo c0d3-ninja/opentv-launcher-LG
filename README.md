@@ -36,6 +36,21 @@ A clean, ad-free home screen for rooted LG webOS TVs, in the style of Apple TV.
 
 ---
 
+## 🧪 Compatibility
+
+👨‍💻 It works on my machine.
+
+| webOS version | TV years | Will it work? |
+| --- | --- | --- |
+| webOS 22 (7.x) | 2022 | ✅ Tested |
+| webOS 23 / 24 / 25 | 2023 to 2025 | 🟡 Likely, but untested. The system parts it relies on are the same family, with a newer web engine. The open question is whether root is available for the firmware you have. |
+| webOS 6 | 2021 | 🟠 Probably works with small fixes |
+| webOS 5 and older | 2020 and earlier | 🔴 Not without fixes |
+
+🤖 **Have one of the untested versions?** Ask an AI assistant to help you adapt it: share this README, your webOS version and the log from `/tmp/opentvlauncher.log`, and ask it to check what needs changing.
+
+---
+
 ## 🧰 Before you start (prerequisites)
 
 1. 🔓 **Root your TV.** I used [slopbro](https://github.com/throwaway96/slopbro):
