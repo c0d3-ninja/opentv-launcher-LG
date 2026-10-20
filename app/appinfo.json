@@ -1,0 +1,15 @@
+{
+  "id": "com.opentvlauncher.lg",
+  "version": "1.3.0",
+  "vendor": "OpenTV Launcher",
+  "type": "web",
+  "main": "index.html",
+  "title": "OpenTV Launcher",
+  "icon": "icon.png",
+  "largeIcon": "largeIcon.png",
+  "bgColor": "#0B0C0F",
+  "resolution": "1920x1080",
+  "disableBackHistoryAPI": true,
+  "handlesRelaunch": true,
+  "transparent": false
+}

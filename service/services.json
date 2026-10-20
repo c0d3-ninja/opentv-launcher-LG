@@ -1,0 +1,7 @@
+{
+  "id": "com.opentvlauncher.lg.service",
+  "description": "OpenTV Launcher root service",
+  "services": [
+    { "name": "com.opentvlauncher.lg.service" }
+  ]
+}

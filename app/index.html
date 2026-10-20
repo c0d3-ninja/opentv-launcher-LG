@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=1920, height=1080">
+<title>OpenTV Launcher</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="stage">
+  <div id="hero">
+    <div class="hero-bg" id="bgA"></div>
+    <div class="hero-bg" id="bgB"></div>
+    <div class="hero-fade"></div>
+  </div>
+
+  <header id="topbar">
+    <div class="top-left">
+      <button class="top-btn" id="btnSettings" aria-label="Settings">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.32 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      </button>
+      <button class="top-btn" id="btnNotif" aria-label="Notifications">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+      </button>
+      <button class="top-btn top-pill" id="btnLgHome" aria-label="LG Home">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/></svg>
+        <span>LG Home</span>
+      </button>
+    </div>
+    <div class="top-right">
+      <div id="clock">--:--</div>
+      <button class="top-btn" id="btnSearch" aria-label="Search">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="21" y2="21"/></svg>
+      </button>
+      <div id="profile">V</div>
+    </div>
+  </header>
+
+  <section id="heroText">
+    <div id="heroLabel" class="hero-label"></div>
+    <h1 id="heroTitle"></h1>
+    <p id="heroDesc"></p>
+    <div class="hero-hint"><span class="ok-key">OK</span> to open</div>
+  </section>
+
+  <div id="rows">
+    <div class="row-title row-title-first">Recent</div>
+    <div class="row" id="dock" role="list"></div>
+    <div class="row-title">All Apps</div>
+    <div class="row" id="more" role="list"></div>
+  </div>
+
+  <div id="recents" aria-hidden="true">
+    <div class="rc-sheet">
+      <div class="rc-head">
+        <div class="rc-title">Recent Lists</div>
+        <button class="rc-closeall" id="rcCloseAll">Close All</button>
+      </div>
+      <div class="rc-row" id="rcRow" role="list"></div>
+      <div class="rc-empty">No recent apps</div>
+    </div>
+  </div>
+
+  <div id="toast" role="status" aria-live="polite"></div>
+</div>
+<script src="apps.js"></script>
+<script src="installed.js"></script>
+<script src="launcher.js"></script>
+</body>
+</html>

@@ -1,0 +1,5 @@
+app/installed.js
+app/icons/
+app/recents/
+.DS_Store
+.idea/

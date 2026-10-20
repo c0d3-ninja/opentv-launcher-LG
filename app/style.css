@@ -1,0 +1,506 @@
+html, body {
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #0B0C0F;
+  cursor: default;
+}
+
+#stage {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 1920px;
+  height: 1080px;
+  overflow: hidden;
+  background: #0B0C0F;
+  color: #F5F5F7;
+  font-family: -apple-system, "LG Smart UI", "SF Pro Display", "Helvetica Neue", Arial, sans-serif;
+  transform-origin: 0 0;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ---------- Hero banner ---------- */
+#hero {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 1920px;
+  height: 780px;
+  overflow: hidden;
+}
+.hero-bg {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity 650ms ease;
+}
+.hero-bg.on { opacity: 1; }
+.hero-fade {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 1920px;
+  height: 360px;
+  background: linear-gradient(180deg, rgba(11,12,15,0) 0%, rgba(11,12,15,0.6) 40%, #0B0C0F 100%);
+}
+
+/* ---------- Top bar ---------- */
+#topbar {
+  position: absolute;
+  left: 80px;
+  right: 80px;
+  top: 52px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  z-index: 10;
+}
+.top-title {
+  font-size: 28px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: rgba(245,245,247,0.9);
+}
+.top-left,
+.top-right {
+  display: flex;
+  align-items: center;
+  gap: 28px;
+}
+#clock {
+  font-size: 28px;
+  font-weight: 500;
+  color: rgba(245,245,247,0.85);
+}
+.top-btn {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255,255,255,0.08);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(245,245,247,0.7);
+  cursor: pointer;
+  transition: background 300ms ease, color 300ms ease, transform 300ms cubic-bezier(0.22, 0.8, 0.24, 1);
+  padding: 0;
+  outline: none;
+}
+.top-btn:hover,
+.top-btn.focused {
+  background: rgba(255,255,255,0.2);
+  color: rgba(245,245,247,1);
+  transform: scale(1.1);
+}
+.top-btn.top-pill {
+  width: auto;
+  padding: 0 20px 0 16px;
+  border-radius: 24px;
+  gap: 8px;
+  font-family: inherit;
+  font-size: 18px;
+  font-weight: 600;
+}
+.top-btn.top-pill.focused { transform: scale(1.06); }
+#profile {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  font-weight: 600;
+  color: rgba(245,245,247,0.9);
+  cursor: pointer;
+  transition: background 300ms ease, transform 300ms cubic-bezier(0.22, 0.8, 0.24, 1);
+}
+#profile:hover,
+#profile.focused {
+  background: rgba(255,255,255,0.3);
+  transform: scale(1.1);
+}
+
+/* ---------- Hero text ---------- */
+#heroText {
+  position: absolute;
+  left: 80px;
+  top: 240px;
+  width: 900px;
+  z-index: 5;
+  transition: opacity 400ms ease, transform 400ms cubic-bezier(0.22, 0.8, 0.24, 1);
+}
+/* Fade the banner text in when focus moves to another app */
+#heroText.hero-in > * { animation: heroIn 420ms cubic-bezier(0.22, 0.8, 0.24, 1) both; }
+#heroText.hero-in > :nth-child(2) { animation-delay: 30ms; }
+#heroText.hero-in > :nth-child(3) { animation-delay: 60ms; }
+@keyframes heroIn {
+  from { opacity: 0; transform: translate3d(-18px,0,0); }
+  to   { opacity: 1; transform: none; }
+}
+.hero-label {
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgba(245,245,247,0.6);
+  margin-bottom: 16px;
+}
+#heroTitle {
+  margin: 0;
+  font-size: 86px;
+  line-height: 1.02;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+}
+#heroDesc {
+  margin: 20px 0 0;
+  max-width: 700px;
+  font-size: 26px;
+  line-height: 1.4;
+  color: rgba(245,245,247,0.7);
+  font-weight: 400;
+}
+.hero-hint {
+  margin-top: 28px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 20px;
+  color: rgba(245,245,247,0.5);
+}
+.ok-key {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 36px;
+  min-width: 48px;
+  padding: 0 10px;
+  box-sizing: border-box;
+  border-radius: 18px;
+  border: 1.5px solid rgba(245,245,247,0.4);
+  font-size: 15px;
+  font-weight: 700;
+  color: rgba(245,245,247,0.7);
+}
+
+/* ---------- App rows ---------- */
+#rows {
+  position: absolute;
+  left: 80px;
+  top: 600px;
+  width: 1760px;
+  transition: transform 520ms cubic-bezier(0.22, 0.8, 0.24, 1);
+  will-change: transform;
+}
+.row-label {
+  font-size: 22px;
+  font-weight: 600;
+  color: rgba(245,245,247,0.5);
+  margin-bottom: 20px;
+  letter-spacing: 0.01em;
+}
+.row {
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+}
+.row-title {
+  margin: 44px 0 18px;
+  font-size: 25px;
+  font-weight: 600;
+  color: rgba(245,245,247,0.4);
+  letter-spacing: 0.01em;
+  transition: color 350ms ease;
+}
+.row-title-first { margin-top: 0; color: rgba(245,245,247,0.6); }
+body.expanded .row-title-first { color: rgba(245,245,247,0.4); }
+#dock { transition: opacity 400ms ease; }
+body.expanded #dock { opacity: 0.6; }
+#more {
+  flex-wrap: wrap;
+  row-gap: 30px;
+  opacity: 0.6;
+  transition: opacity 350ms ease;
+}
+
+/* Expanded state (scrolled to All Apps) */
+/* #rows is moved by launcher.js (scrollRows) so it can follow the focus */
+body.expanded #heroText { opacity: 0; transform: translateY(-30px); pointer-events: none; }
+body.expanded #more { opacity: 1; }
+body.expanded .row-title:not(.row-title-first) { color: rgba(245,245,247,0.8); }
+
+/* ---------- Tiles ---------- */
+.tile {
+  position: relative;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 148px;
+}
+.tile-box {
+  width: 148px;
+  height: 90px;
+  box-sizing: border-box;
+  border-radius: 16px;
+  overflow: hidden;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #2C2C2E;
+  border: 1px solid rgba(255,255,255,0.06);
+  /* Only transform and opacity animate: the TV's GPU does those smoothly.
+     The shadow lives on .tile::before and fades in. */
+  transform: translate3d(0,0,0) scale(1);
+  backface-visibility: hidden;
+  z-index: 1;
+  transition: transform 380ms cubic-bezier(0.22, 0.8, 0.24, 1), border-color 380ms ease;
+  will-change: transform;
+}
+
+/* App icon image (from TV system) */
+.tile-box img {
+  max-width: 80%;
+  max-height: 80%;
+  object-fit: contain;
+  display: block;
+  position: relative;
+  z-index: 1;
+}
+/* If icon fills the whole tile (edge-to-edge icons) */
+.tile-box img.tile-icon-fill {
+  max-width: 100%;
+  max-height: 100%;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+/* Fallback initial letter (when no real icon) */
+.tile-initial {
+  font-size: 30px;
+  font-weight: 700;
+  color: rgba(255,255,255,0.95);
+  text-shadow: 0 2px 8px rgba(0,0,0,0.3);
+  position: relative;
+  z-index: 1;
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+
+/* App name below tile */
+.tile-name {
+  margin-top: 12px;
+  font-size: 19px;
+  font-weight: 500;
+  height: 28px;
+  transform: translate3d(0,0,0) scale(1);
+  transform-origin: 50% 0;
+  will-change: transform;
+  color: rgba(245,245,247,0.45);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 148px;
+  text-align: center;
+  transition: color 300ms ease, opacity 300ms ease, transform 380ms cubic-bezier(0.22, 0.8, 0.24, 1);
+}
+
+/* ---------- Focus state (Apple TV style) ---------- */
+/* Shadow under the tile, faded and scaled with it */
+.tile::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 148px;
+  height: 90px;
+  border-radius: 16px;
+  box-shadow: 0 18px 48px rgba(0,0,0,0.55), 0 6px 18px rgba(0,0,0,0.35);
+  opacity: 0;
+  transform: translate3d(0,0,0) scale(1);
+  transition: opacity 380ms ease, transform 380ms cubic-bezier(0.22, 0.8, 0.24, 1);
+  will-change: transform, opacity;
+  pointer-events: none;
+}
+.tile.focused::before {
+  opacity: 1;
+  transform: translate3d(0,-10px,0) scale(1.12);
+}
+.tile.focused .tile-box {
+  transform: translate3d(0,-10px,0) scale(1.12);
+  border-color: rgba(255,255,255,0.15);
+}
+/* Shine overlay */
+.tile.focused .tile-box::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(
+    145deg,
+    rgba(255,255,255,0.18) 0%,
+    rgba(255,255,255,0.06) 30%,
+    rgba(255,255,255,0) 55%
+  );
+  pointer-events: none;
+  z-index: 2;
+  animation: shineIn 340ms ease both;
+}
+@keyframes shineIn { from { opacity: 0; } to { opacity: 1; } }
+.tile.focused .tile-name {
+  color: rgba(245,245,247,1);
+  transform: translate3d(0,8px,0) scale(1.2);
+}
+.tile.focused { z-index: 2; }
+
+/* Missing app (not installed) */
+.tile.missing .tile-box { opacity: 0.3; }
+.tile.missing .tile-name { opacity: 0.3; }
+
+/* ---------- Toast ---------- */
+#toast {
+  position: absolute;
+  left: 50%;
+  bottom: 60px;
+  transform: translate(-50%, 40px);
+  padding: 16px 32px;
+  border-radius: 999px;
+  background: rgba(40,42,48,0.92);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  font-size: 22px;
+  color: #F5F5F7;
+  opacity: 0;
+  transition: opacity 250ms ease, transform 250ms ease;
+  pointer-events: none;
+  z-index: 100;
+}
+#toast.show {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+
+/* ---------- Recent Lists (double Back), styled like LG's panel ---------- */
+#recents {
+  position: absolute;
+  inset: 0;
+  z-index: 50;
+  background: rgba(0,0,0,0);
+  visibility: hidden;
+  transition: background 360ms ease, visibility 0s linear 420ms;
+}
+#recents.open {
+  background: rgba(0,0,0,0.35);
+  visibility: visible;
+  transition: background 360ms ease, visibility 0s;
+}
+.rc-sheet {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 532px;
+  background: #2B2D31;
+  padding: 0 0 0 36px;
+  box-sizing: border-box;
+  transform: translate3d(0,100%,0);
+  transition: transform 420ms cubic-bezier(0.22, 0.8, 0.24, 1);
+  will-change: transform;
+}
+#recents.open .rc-sheet { transform: none; }
+.rc-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 160px;
+  padding-right: 36px;
+}
+.rc-title { font-size: 44px; font-weight: 500; color: #F5F5F7; }
+.rc-closeall {
+  height: 62px;
+  padding: 0 64px;
+  border: none;
+  border-radius: 6px;
+  background: #7D8187;
+  color: #F5F5F7;
+  font-family: inherit;
+  font-size: 28px;
+  outline: none;
+  transition: background 250ms ease, color 250ms ease, transform 300ms cubic-bezier(0.22, 0.8, 0.24, 1);
+}
+.rc-closeall.focused { background: #F5F5F7; color: #1A1B1E; transform: scale(1.05); }
+.rc-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 18px;
+  height: 330px;
+  transition: transform 420ms cubic-bezier(0.22, 0.8, 0.24, 1);
+}
+.rc-card {
+  position: relative;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-bottom: 36px;
+  transition: opacity 300ms ease, transform 300ms cubic-bezier(0.22, 0.8, 0.24, 1);
+}
+.rc-card.closing { opacity: 0; transform: translate3d(0,-60px,0) scale(0.9); }
+.rc-box {
+  width: 330px;
+  height: 186px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #1E1F22;
+  transform: translate3d(0,0,0) scale(1);
+  transition: transform 380ms cubic-bezier(0.22, 0.8, 0.24, 1);
+  will-change: transform;
+}
+.rc-box img.rc-shot { width: 100%; height: 100%; object-fit: cover; }
+.rc-box img.rc-icon { width: 100%; height: 100%; object-fit: contain; }
+.rc-card.focused .rc-box,
+.rc-card.x-focused .rc-box { transform: translate3d(0,-14px,0) scale(1.18); }
+.rc-name {
+  margin-top: 30px;
+  font-size: 28px;
+  color: rgba(245,245,247,0.85);
+  white-space: nowrap;
+  max-width: 330px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: color 250ms ease, transform 380ms cubic-bezier(0.22, 0.8, 0.24, 1);
+}
+.rc-card.focused .rc-name,
+.rc-card.x-focused .rc-name { color: #FFFFFF; transform: translate3d(0,8px,0); }
+.rc-x {
+  position: absolute;
+  top: -78px;
+  left: 50%;
+  width: 56px;
+  height: 56px;
+  margin-left: -28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #F5F5F7;
+  opacity: 0;
+  transition: opacity 250ms ease, background 250ms ease, color 250ms ease;
+}
+.rc-card.focused .rc-x,
+.rc-card.x-focused .rc-x { opacity: 1; }
+.rc-card.x-focused .rc-x { background: #F5F5F7; color: #1A1B1E; }
+.rc-empty { display: none; font-size: 28px; color: rgba(245,245,247,0.6); padding-top: 100px; }
+#recents.empty .rc-empty { display: block; }
+#recents.empty .rc-row { display: none; }
+.rc-card.focused, .rc-card.x-focused { z-index: 2; }
