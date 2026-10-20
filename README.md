@@ -39,11 +39,11 @@ A clean, ad-free home screen for rooted LG webOS TVs, in the style of Apple TV.
 ## 🧰 Before you start (prerequisites)
 
 1. 🔓 **Root your TV.** I used [slopbro](https://github.com/throwaway96/slopbro):
+   - 🔎 Your TV not supported by slopbro? Check [CanI.RootMy.TV](https://cani.rootmy.tv) for other options.
    - 🐍 Get the slopbro repo on a computer that has Python 3.
    - 📶 Put the computer and the TV on the same network.
    - ▶️ Run slopbro, following its README. Accept the pairing prompt on the TV when it appears.
    - 🍺 When it finishes, the **Homebrew Channel** is installed on your TV.
-   - 🔎 Your TV not supported by slopbro? Check [CanI.RootMy.TV](https://cani.rootmy.tv) for other options.
 2. 🗑️ **Remove LG's "Developer Mode" app** if it's installed on your TV. Uninstall it from the TV like any other app. When its session runs out, it can delete apps installed like this one, and on a rooted TV the Homebrew Channel already does its job.
 3. 🖥️ **Turn on root shell access.** On the TV, open **Homebrew Channel → Settings** and turn on **Telnet** (or **SSH**).
 4. 🔢 **Find your TV's IP address.** On the TV, go to **Settings → Network → Wi-Fi (or Wired) → Advanced Settings**.

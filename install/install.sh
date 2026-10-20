@@ -126,16 +126,36 @@ rm -rf "$APPS/applications/$APP_ID" "$APPS/packages/$APP_ID"
 ok "Ready for a clean install"
 
 # ---------------------------------------------------------------- install
-step 5 "Installing the app (this takes up to 40 seconds)"
-luna-send -n 12 -w 40000 luna://com.webos.appInstallService/dev/install \
-  "{\"id\":\"$APP_ID\",\"ipkUrl\":\"$IPK\",\"subscribe\":true}" >/tmp/opentvlauncher-install.txt 2>&1
-if luna-send -n 1 -w 5000 luna://com.webos.applicationManager/dev/listApps '{}' 2>/dev/null | grep -q "\"$APP_ID\""; then
-  ok "OpenTV Launcher is installed"
-else
-  echo ""
-  cat /tmp/opentvlauncher-install.txt
-  fail "The TV did not install the app (details above)."
-fi
+step 5 "Installing the app (this takes up to a minute)"
+# Is the app installed? 0 = yes, 1 = no, 2 = the TV didn't answer
+app_installed() {
+  out=$(luna-send -n 1 -w 8000 luna://com.webos.applicationManager/dev/listApps '{}' </dev/null 2>/dev/null)
+  echo "$out" | grep -q '"returnValue": *true' || return 2
+  echo "$out" | grep -q "\"$APP_ID\"" && [ -f "$APPDIR/index.html" ] && return 0
+  return 1
+}
+# The TV's installer ignores new requests while it is still busy (for
+# example finishing an uninstall), so wait for the result and try again.
+attempt=1
+while :; do
+  luna-send -n 12 -w 40000 luna://com.webos.appInstallService/dev/install \
+    "{\"id\":\"$APP_ID\",\"ipkUrl\":\"$IPK\",\"subscribe\":true}" </dev/null >/tmp/opentvlauncher-install.txt 2>&1
+  i=0
+  until app_installed; do
+    i=$((i + 1)); [ $i -ge 15 ] && break
+    sleep 2
+  done
+  app_installed && break
+  if [ $attempt -ge 3 ]; then
+    echo ""
+    cat /tmp/opentvlauncher-install.txt
+    fail "The TV did not install the app (details above). Restart the TV and run this again."
+  fi
+  warn "The TV's installer is busy. Trying again in 15 seconds (attempt $((attempt + 1)) of 3)"
+  attempt=$((attempt + 1))
+  sleep 15
+done
+ok "OpenTV Launcher is installed"
 for f in index.html boot.js apps.js launcher.js style.css autostart.sh install-autostart.sh sync-icons.js; do
   [ -f "$APPDIR/$f" ] || fail "Installed, but $f is missing from $APPDIR"
 done
@@ -146,7 +166,7 @@ rm -f "$IPK" /tmp/opentvlauncher-install.txt
 # ---------------------------------------------------------------- auto-start
 step 6 "Turning on start-up, Home button and recent apps"
 rm -f "$LOG"
-sh "$APPDIR/install-autostart.sh" >/dev/null 2>&1
+sh "$APPDIR/install-autostart.sh" </dev/null >/dev/null 2>&1
 [ -x "$INIT_FILE" ] || fail "Could not create the start-up file $INIT_FILE"
 ok "Starts automatically every time the TV turns on"
 
@@ -160,7 +180,13 @@ until grep -q "boot -> launcher" "$LOG" 2>/dev/null; do
 done
 ok "Background watcher is running"
 
-if luna-send -n 1 -w 8000 "luna://$SERVICE_ID/status" '{}' 2>/dev/null | grep -q '"root": *true'; then
+# The service restarts while it gets root: give it up to 30 seconds
+i=0
+until luna-send -n 1 -w 5000 "luna://$SERVICE_ID/status" '{}' </dev/null 2>/dev/null | grep -q '"root": *true'; do
+  i=$((i + 1)); [ $i -ge 10 ] && break
+  sleep 3
+done
+if [ $i -lt 10 ]; then
   ok "Root access is working (new apps get their icons by themselves)"
 else
   warn "Root access is not on yet. Press Home on the remote once; it turns on by itself."
@@ -169,13 +195,19 @@ fi
 ICONS=$(sed -n 's/.*synced \([0-9]*\) apps, \([0-9]*\) icons.*/\2 icons for \1 apps/p' "$LOG" | tail -n 1)
 [ -n "$ICONS" ] && ok "Copied $ICONS"
 
-sleep 3
-FG=$(luna-send -n 1 -w 3000 luna://com.webos.applicationManager/getForegroundAppInfo '{}' 2>/dev/null |
-  sed -n 's/.*"appId": *"\([^"]*\)".*/\1/p')
+# The launcher is reopened a few times right after start: wait for it
+i=0
+while :; do
+  FG=$(luna-send -n 1 -w 3000 luna://com.webos.applicationManager/getForegroundAppInfo '{}' </dev/null 2>/dev/null |
+    sed -n 's/.*"appId": *"\([^"]*\)".*/\1/p')
+  [ "$FG" = "$APP_ID" ] && break
+  i=$((i + 1)); [ $i -ge 8 ] && break
+  sleep 2
+done
 if [ "$FG" = "$APP_ID" ]; then
   ok "OpenTV Launcher is on screen"
 else
-  warn "Another app ($FG) is on screen. Press Home on the remote."
+  warn "Another app${FG:+ ($FG)} is on screen. Press Home on the remote."
 fi
 
 echo ""
