@@ -13,7 +13,7 @@
 
 # Downloads come from a fixed release, not from whatever is on main at that moment,
 # so a half-finished change can never break an install. Update with each release.
-RELEASE="v1.1.1"
+RELEASE="v1.2.0"
 REF=${OTV_REF:-$RELEASE}
 REPO_RAW="https://raw.githubusercontent.com/c0d3-ninja/opentv-adblock-webos/$REF"
 # Keep in sync with FILES in scripts/sums.js

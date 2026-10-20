@@ -31,7 +31,7 @@ if [ -e "$BOOT_SCRIPT" ]; then warn "Could not delete $BOOT_SCRIPT"; else ok "It
 # "<id> <start time>": after a reboot the same id can belong to another program,
 # so a process is only stopped when its start time matches too.
 proc_start() { [ -r "/proc/$1/stat" ] && sed 's/^.*) //' "/proc/$1/stat" 2>/dev/null | cut -d' ' -f20; }
-for pf in "$DEST/.lock/pid" "$DEST/run-proxy.pid" "$DEST/pvproxy.pid"; do
+for pf in "$DEST/.lock/pid" "$DEST/update-watch.pid" "$DEST/run-proxy.pid" "$DEST/pvproxy.pid"; do
   [ -f "$pf" ] || continue
   set -- $(cat "$pf" 2>/dev/null)
   [ -n "$1" ] && [ -n "$2" ] && [ "$(proc_start "$1")" = "$2" ] && kill "$1" 2>/dev/null
@@ -40,6 +40,8 @@ done
 for d in /proc/[0-9]*; do
   case "$({ tr '\0' ' ' < "$d/cmdline"; } 2>/dev/null)" in
     "sh $DEST/ctl.sh "*|"node $DEST/pvproxy.js"*) kill "${d#/proc/}" 2>/dev/null ;;
+    # the Prime Video update watcher's listener
+    "luna-send -i luna://com.webos.appInstallService/status "*) kill "${d#/proc/}" 2>/dev/null ;;
   esac
 done
 
@@ -70,7 +72,7 @@ elif [ -d "$DEST" ]; then
   for f in ctl.sh pvproxy.js primeconfig.js hosts.blocklist uninstall.sh config hosts.custom \
            hosts.generated prime_config.json key.pem cert.pem .prime_check \
            opentv-adblock.log opentv-adblock.log.old pvproxy.log pvproxy.log.old \
-           run-proxy.pid pvproxy.pid; do
+           run-proxy.pid pvproxy.pid update-watch.pid .prime-updating; do
     rm -f "$DEST/$f"
   done
   rm -rf "$DEST/.lock"

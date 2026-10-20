@@ -292,6 +292,8 @@ service.register("askDelete", function (msg) {
 // Its own control script is the source of truth, so the switch always shows the
 // real state, also after "ctl.sh on/off" from a shell.
 var ADBLOCK_CTL = "/home/root/opentv-adblock/ctl.sh";
+// Its boot script; missing after "uninstall.sh --keep", then it doesn't come back after a restart
+var ADBLOCK_BOOT = "/var/lib/webosbrew/init.d/70opentv-adblock";
 var adblockBusy = false;
 
 function adblockState(cb) {
@@ -310,12 +312,13 @@ function adblockState(cb) {
       hosts: st.hosts || "off",          // on | off | disabled
       prime: st.prime || "off",          // on | off | starting | disabled | missing | unsupported
       adBreaksRemoved: Number(st.ad_breaks_removed) || 0,
+      atBoot: require("fs").existsSync(ADBLOCK_BOOT),
       busy: adblockBusy
     });
   });
 }
 
-// { installed, enabled, hosts, prime, adBreaksRemoved, busy }
+// { installed, enabled, hosts, prime, adBreaksRemoved, atBoot, busy }
 service.register("adblock", function (msg) {
   adblockState(function (st) { msg.respond(st); });
 });

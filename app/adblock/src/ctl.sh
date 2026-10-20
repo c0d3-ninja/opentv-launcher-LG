@@ -19,6 +19,8 @@ LOG="$DIR/opentv-adblock.log"
 PLOG="$DIR/pvproxy.log"
 LOOP_PID="$DIR/run-proxy.pid"
 NODE_PID="$DIR/pvproxy.pid"
+UPD_PID="$DIR/update-watch.pid"
+UPDATING="$DIR/.prime-updating"
 LOCK="$DIR/.lock"
 MARK="# opentv-adblock blocklist"
 TV_CA=/etc/ssl/certs/ca-certificates.crt
@@ -324,12 +326,94 @@ proxy_stop() {
   kill_orphans >/dev/null   # anything we lost track of
 }
 
+# ---------------- Prime Video updates ----------------
+# While an app is installed or updated, the TV announces each step on
+# appInstallService/status, one line each, ending in "id":"<app>". When Prime Video
+# starts updating, its covered settings file is uncovered at once, so the update can
+# replace its files freely; when the update is done the cover goes back on.
+
+upd_is_me() { [ "$(cut -d' ' -f1 "$UPD_PID" 2>/dev/null)" = "$$" ]; }
+
+prime_uncover_for_update() {
+  # Time matters here: the installer starts replacing files a few hundred ms after its
+  # first announcement. The app's folder was looked up when the watcher started.
+  d=${PRIME_DIR_CACHE:-$(prime_dir)}
+  touch "$UPDATING"
+  [ -n "$d" ] && prime_routed "$d" || return 0
+  prime_unroute "$d"
+  log "Prime Video is being updated: proxy setting removed until the update is done"
+  # In case the TV never announces the end: a timer that sets it up again after 30 minutes
+  nohup sh "$DIR/ctl.sh" update-fallback </dev/null >/dev/null 2>&1 &
+}
+
+update_events() {
+  while read -r line; do
+    case "$line" in *"\"id\":\"$APP_ID\""*) ;; *) continue ;; esac
+    # Fast path, shell built-ins only: the first announcement of an install, update or
+    # removal uncovers at once (unless it is already the end of a fresh install)
+    if [ ! -f "$UPDATING" ]; then
+      case "$line" in
+        *'"state":"installed"'*) ;;
+        *) prime_uncover_for_update; continue ;;
+      esac
+    fi
+    upd_is_me || return 0
+    state=$(echo "$line" | sed -n 's/.*"state":"\([^"]*\)".*/\1/p')
+    simple=$(echo "$line" | sed -n 's/.*"simpleStatus":"\([^"]*\)".*/\1/p')
+    [ "$simple" = remove ] && continue   # removed: nothing to put back
+    case "$state" in
+      installed|*fail*|*error*|*cancel*|*abort*)
+        # Done (or stopped): put the cover back, in the background so no event is missed
+        if [ -f "$UPDATING" ]; then
+          log "Prime Video update finished ($state)"
+          ( sleep 3; sh "$DIR/ctl.sh" prime-reapply ) </dev/null >/dev/null 2>&1 &
+        elif [ "$state" = installed ]; then
+          # Installed while it wasn't routed (for example a fresh install): route it
+          ( sleep 3; sh "$DIR/ctl.sh" prime-reapply ) </dev/null >/dev/null 2>&1 &
+        fi ;;
+    esac
+  done
+}
+
+update_watch() {
+  write_pid "$UPD_PID" $$
+  while upd_is_me; do
+    PRIME_DIR_CACHE=$(prime_dir)
+    luna-send -i luna://com.webos.appInstallService/status '{"subscribe":true}' </dev/null 2>/dev/null | update_events
+    upd_is_me && sleep 5   # the install service restarted: listen again
+  done
+}
+
+update_watch_start() {
+  pid_alive "$UPD_PID" && return 0
+  nohup sh "$DIR/ctl.sh" run-update-watch </dev/null >/dev/null 2>&1 &
+}
+
+update_watch_stop() {
+  p=$(pid_of "$UPD_PID"); rm -f "$UPD_PID"
+  if [ -n "$p" ]; then
+    # Its listener first (a child of the watcher), then the watcher
+    for d in /proc/[0-9]*; do
+      [ "$(sed -n 's/^PPid:[[:space:]]*//p' "$d/status" 2>/dev/null)" = "$p" ] && kill "${d#/proc/}" 2>/dev/null
+    done
+    kill "$p" 2>/dev/null
+  fi
+  # Anything else of the watcher (its event reader), found by command line
+  for d in /proc/[0-9]*; do
+    case "$({ tr '\0' ' ' < "$d/cmdline"; } 2>/dev/null)" in
+      "sh $DIR/ctl.sh run-update-watch"*|"sh $DIR/ctl.sh update-fallback"*) kill "${d#/proc/}" 2>/dev/null ;;
+    esac
+  done
+}
+
 prime_start() {
   # $1 = seconds to wait for the app, the proxy and the app's jail folder
   wait=${1:-120}
   [ "$ENABLE_PRIME" = 1 ] || return 0
   if [ -z "$(node_bin)" ]; then log "Prime Video: Node.js not found, skipped"; return 0; fi
   if [ ! -f "$DIR/key.pem" ] || [ ! -f "$DIR/cert.pem" ]; then log "Prime Video: certificate missing, skipped"; return 0; fi
+  # Also when Prime Video isn't installed yet: it is set up as soon as it is
+  update_watch_start
 
   dir=""; n=0
   while [ -z "$dir" ] && [ $n -lt "$wait" ]; do dir=$(prime_dir) || { sleep 5; n=$((n + 5)); }; done
@@ -370,6 +454,8 @@ prime_start() {
 }
 
 prime_stop() {
+  update_watch_stop
+  rm -f "$UPDATING"
   dir=$(prime_dir)
   if [ -n "$dir" ] && prime_routed "$dir"; then
     SWITCHED=1
@@ -408,7 +494,8 @@ prime_state() {
   if [ "$ENABLE_PRIME" != 1 ]; then echo disabled; return; fi
   dir=$(prime_dir) || { echo missing; return; }
   prime_supported "$dir" || { echo unsupported; return; }
-  if proxy_ready && prime_routed "$dir"; then echo on
+  if [ -f "$UPDATING" ] && pid_alive "$UPD_PID"; then echo updating
+  elif proxy_ready && prime_routed "$dir"; then echo on
   elif pid_alive "$LOOP_PID"; then echo starting
   else echo off
   fi
@@ -445,6 +532,7 @@ cmd_status() {
   case "$(prime_state)" in
     on) echo "Prime Video proxy:   ON  (port $PROXY_PORT, ad breaks removed so far: $(ads_removed))" ;;
     starting) echo "Prime Video proxy:   starting" ;;
+    updating) echo "Prime Video proxy:   paused while Prime Video updates (back on by itself)" ;;
     disabled) echo "Prime Video proxy:   OFF (disabled in config)" ;;
     missing) echo "Prime Video proxy:   app not installed" ;;
     unsupported) echo "Prime Video proxy:   not supported by this Prime Video version" ;;
@@ -462,7 +550,8 @@ case "$1" in
   boot-run)
     lock
     # Left from before the reboot: the processes they name are gone
-    for f in "$LOOP_PID" "$NODE_PID"; do pid_alive "$f" || rm -f "$f"; done
+    for f in "$LOOP_PID" "$NODE_PID" "$UPD_PID"; do pid_alive "$f" || rm -f "$f"; done
+    rm -f "$UPDATING"
     rotate
     if [ "$ENABLED" != 1 ]; then log "boot: turned off, nothing to do"; exit 0; fi
     log "boot"
@@ -513,6 +602,26 @@ case "$1" in
     echo "== $PLOG"; tail -n 30 "$PLOG" 2>/dev/null
     ;;
   run-proxy) proxy_loop ;;
+  run-update-watch) update_watch ;;
+  update-fallback)
+    # Checks once a minute; ends as soon as the update reports back or blocking is off
+    n=0
+    while [ $n -lt 30 ]; do
+      sleep "${UPD_FALLBACK_STEP:-60}"
+      [ -f "$UPDATING" ] && pid_alive "$UPD_PID" || exit 0
+      n=$((n + 1))
+    done
+    log "Prime Video update didn't report back in 30 minutes: setting it up again"
+    exec sh "$DIR/ctl.sh" prime-reapply
+    ;;
+  prime-reapply)
+    # After a Prime Video update (from the update watcher): cover it again
+    lock
+    rm -f "$UPDATING"
+    if [ "$ENABLED" = 1 ] && [ "$ENABLE_PRIME" = 1 ] && pid_alive "$UPD_PID"; then
+      prime_start 60
+    fi
+    ;;
   *)
     echo "usage: $0 {on|off|start|stop|restart|status|state|logs}"
     exit 1

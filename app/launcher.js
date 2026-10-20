@@ -395,7 +395,9 @@
     var hint;
     if (adblock.busy) hint = adblock.enabled ? "Switching on\u2026 open apps will close" : "Switching off\u2026 open apps will close";
     else if (!adblock.enabled) hint = "Prime Video ads and Google ad servers";
+    else if (adblock.atBoot === false) hint = "On until the TV restarts";
     else if (adblock.prime === "starting") hint = "On: starting\u2026";
+    else if (adblock.prime === "updating") hint = "On: Google ads (Prime Video is updating)";
     else if (adblock.prime === "on" && adblock.hosts === "on") hint = "On: Prime Video and Google ads";
     else if (adblock.prime === "on") hint = "On: Prime Video ads";
     else if (adblock.hosts === "on") hint = "On: Google ads" + (adblock.prime === "missing" ? "" : " (Prime Video not available)");
@@ -412,6 +414,7 @@
       adblock.enabled = !!res.enabled;
       adblock.hosts = res.hosts;
       adblock.prime = res.prime;
+      adblock.atBoot = res.atBoot;
       adblock.busy = !!res.busy;
       drawAdblock();
       if (res.busy) setTimeout(refreshAdblock, 3000);
@@ -430,12 +433,21 @@
         adblock.enabled = !!res.enabled;
         adblock.hosts = res.hosts;
         adblock.prime = res.prime;
+        adblock.atBoot = res.atBoot;
       } else {
         adblock.enabled = !want;
       }
       drawAdblock();
-      if (res && res.returnValue) toast(want ? "Ads blocked" : "Ad blocking off");
-      else toast((res && res.errorText) || "Couldn't switch ad blocking", true);
+      if (res && res.returnValue) {
+        if (want && res.atBoot === false) toast("Ads blocked until the TV restarts (its start-up file is missing)", true);
+        else toast(want ? "Ads blocked" : "Ad blocking off");
+      }
+      else {
+        toast((res && res.errorText) || "Couldn't switch ad blocking", true);
+        /* For example removed with its own uninstall script: show what is
+           really there now (hides the row if it is gone) */
+        refreshAdblock();
+      }
     }, 130000);
   }
 

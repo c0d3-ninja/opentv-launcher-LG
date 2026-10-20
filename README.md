@@ -2,7 +2,7 @@
 
 A clean, ad-free home screen for rooted LG webOS TVs, in the style of Apple TV, with a built-in ad blocker.
 
-✅ Tested on an LG OLED42C2PSA (webOS 22), rooted with [slopbro](https://github.com/throwaway96/slopbro).
+✅ Tested on an LG OLED42C2PSA (2022) with **webOS 25** (webOS TV 10.3.1, software version 33.31.68), rooted with [slopbro](https://github.com/throwaway96/slopbro).
 
 | 😩 Before: LG's home screen | 😍 After: OpenTV Launcher |
 | --- | --- |
@@ -14,7 +14,7 @@ A clean, ad-free home screen for rooted LG webOS TVs, in the style of Apple TV, 
 
 - 🕘 **Recent row:** your last used apps first (up to 10), topped up with favourites.
 - 📱 **All Apps:** every installed app, with its real icon. New apps appear by themselves.
-- 🛡️ **Block ads:** one switch removes Prime Video's ad breaks and pause ads, and blocks Google's ad servers for every app. Off until you switch it on. Powered by [opentv-adblock-webos](https://github.com/c0d3-ninja/opentv-adblock-webos).
+- 🛡️ **Block ads:** one switch removes Prime Video's ad breaks and pause ads, and blocks Google's ad servers for every app (YouTube only partly). Off until you switch it on. Powered by [opentv-adblock-webos](https://github.com/c0d3-ninja/opentv-adblock-webos).
 - 👁️ **Hide LG TV apps:** keeps only Browser, Apps (the LG store) and HDMI inputs. Off by default.
 - 🗑️ **Delete apps like on LG's home:** hold OK, ⬆️ to **Delete**, confirm in LG's own popup.
 - 🔙 **Recent Lists:** press **Back twice** to see open apps, then close one or all.
@@ -30,12 +30,14 @@ A clean, ad-free home screen for rooted LG webOS TVs, in the style of Apple TV, 
 
 👨‍💻 It works on my machine.
 
-| webOS version | TV years | Will it work? |
-| --- | --- | --- |
-| webOS 22 (7.x) | 2022 | ✅ Tested |
-| webOS 23 / 24 / 25 | 2023 to 2025 | 🟡 Likely, untested. Same system parts, newer web engine. The open question is root for your firmware. |
-| webOS 6 | 2021 | 🟠 Probably, with small fixes |
-| webOS 5 and older | 2020 and earlier | 🔴 Not without fixes |
+| webOS version | Will it work? |
+| --- | --- |
+| webOS 25 (10.x) | ✅ Tested (a 2022 TV upgraded through LG's webOS Re:New) |
+| webOS 22 / 23 / 24 (7.x to 9.x) | 🟡 Likely, untested. Same system parts, older web engine. The open question is root for your firmware. |
+| webOS 6 | 🟠 Probably, with small fixes |
+| webOS 5 and older | 🔴 Not without fixes |
+
+💡 Not sure which webOS you have? In the TV's root shell: `nyx-cmd OSInfo query webos_release` (10.x is webOS 25, 9.x webOS 24, 8.x webOS 23, 7.x webOS 22).
 
 🤖 **Untested version?** Ask an AI assistant to adapt it: share this README, your webOS version and `/tmp/opentvlauncher.log`.
 
@@ -112,7 +114,7 @@ It goes to LG's home first, then removes everything in up to 2 minutes, ending w
 - ⏱️ **At power on,** LG's screen shows first and the launcher takes over after about **3 to 5 seconds**.
 - ⚡ **After Home or Back,** the launcher appears within about **0.1 to 1 second**; you may briefly see LG's home. LG doesn't let other apps replace its home screen, so the launcher steps in right after it opens.
 - 🛡️ **Switching Block ads** takes a few seconds and closes the apps in Recent Lists, so they open fresh with the new setting.
-- 📺 **YouTube** ads are only partly blocked for now.
+- 📺 **YouTube ads are only partly blocked.** The Google blocklist stops some of them, but the YouTube app gets most of its ads from YouTube's own servers, the same ones that send the videos, so those can't be blocked without blocking YouTube itself.
 
 ---
 
