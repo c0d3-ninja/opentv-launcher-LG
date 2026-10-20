@@ -8,11 +8,11 @@ A clean, ad-free home screen for rooted LG webOS TVs, in the style of Apple TV.
 
 ## 🖼️ Before and after
 
-**😩 Before: LG's home screen**, full of banners and ads
+**😩 Before: LG's home screen**
 
 ![LG's home screen](docs/screenshots/before-lg-home.jpg)
 
-**😍 After: OpenTV Launcher**, just your apps
+**😍 After: OpenTV Launcher**
 
 ![OpenTV Launcher](docs/screenshots/after-opentv-launcher.jpg)
 
@@ -22,8 +22,7 @@ A clean, ad-free home screen for rooted LG webOS TVs, in the style of Apple TV.
 
 - 🕘 **Recent row:** the apps you used last come first (up to 10). If you've used fewer than 6, your favourites fill the gap.
 - 📱 **All Apps:** every installed app, with its real icon.
-- 🎛️ **Launcher Settings** (the sliders button next to Search): turn on **Hide LG TV apps** to hide LG's own apps, keeping only Browser, Apps (the LG store) and HDMI inputs. It's off by default.
-- 📊 **Show performance** (also in Launcher Settings): a glass panel on the right of the banner with live **memory (RAM)** use and **storage** left for apps, updated every 5 seconds. It's off by default.
+- 👁️ **Hide LG TV apps:** hides LG's own apps, keeping only Browser, Apps (the LG store) and HDMI inputs. It's off by default.
 - 🗑️ **Delete apps like on LG's home:** hold OK on an app, press ⬆️ to the **Delete** button above it, and confirm in LG's own popup. LG's built-in apps can't be deleted.
 - 🛟 **Safe by design:** if the launcher ever hits an error, it tells you and opens LG's home instead, so the TV is never stuck.
 - 🖥️ **Fits any screen:** HD, Full HD and 4K, and fills other screen shapes too.
@@ -151,6 +150,7 @@ Edit `app/apps.js`, run `sh build-ipk.sh`, then install again:
 | 📦 `dist/` | The ready-to-install IPK. |
 | 🧰 `install/` | `install.sh` and `uninstall.sh` (run on the TV), `serve.sh` (backup: shares the files from your computer). |
 | 🖼️ `docs/screenshots/` | The before and after pictures. |
+| 🎨 `docs/icon/` | The app icon's source file (SVG). |
 | 🏗️ `build-ipk.sh` | Builds the IPK from `app/` and `service/`. |
 
 📝 The log on the TV is `/tmp/opentvlauncher.log`. If something isn't working, check it first.

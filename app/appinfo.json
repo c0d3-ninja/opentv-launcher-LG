@@ -1,6 +1,6 @@
 {
   "id": "com.opentvlauncher.lg",
-  "version": "1.8.2",
+  "version": "1.8.3",
   "vendor": "OpenTV Launcher",
   "type": "web",
   "main": "index.html",
@@ -11,5 +11,6 @@
   "resolution": "1920x1080",
   "disableBackHistoryAPI": true,
   "handlesRelaunch": true,
-  "transparent": false
+  "transparent": false,
+  "iconColor": "#1C1C1E"
 }
