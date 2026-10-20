@@ -275,7 +275,10 @@
   var lsMenu = document.getElementById("lsMenu");
   var lsShowLg = document.getElementById("lsShowLg");
   var lsShowPerf = document.getElementById("lsShowPerf");
-  var lsRows = [lsShowLg, lsShowPerf];
+  var lsAdblock = document.getElementById("lsAdblock");
+  var lsAdblockHint = document.getElementById("lsAdblockHint");
+  var lsAllRows = [lsShowLg, lsShowPerf, lsAdblock];
+  var lsRows = lsAllRows.slice(0, 2);
   var lsRow = 0;
   var lsOpen = false;
 
@@ -288,8 +291,10 @@
   }
 
   function lsFocusRow(i) {
+    /* Only the rows that are shown (Block ads is hidden until it is known) */
+    lsRows = lsAllRows.filter(function (r) { return !r.hidden; });
     lsRow = Math.max(0, Math.min(lsRows.length - 1, i));
-    lsRows.forEach(function (r, k) { r.classList.toggle("focused", k === lsRow); });
+    lsAllRows.forEach(function (r) { r.classList.toggle("focused", r === lsRows[lsRow]); });
   }
 
   /* Settings live in a file on the TV (via the service), so they survive
@@ -348,6 +353,7 @@
   function openLauncherSettings() {
     lsOpen = true;
     drawSettings();
+    refreshAdblock();
     lsFocusRow(0);
     lsMenu.classList.add("open");
     lsMenu.setAttribute("aria-hidden", "false");
@@ -358,7 +364,7 @@
     lsOpen = false;
     lsMenu.classList.remove("open");
     lsMenu.setAttribute("aria-hidden", "true");
-    lsRows.forEach(function (r) { r.classList.remove("focused"); });
+    lsAllRows.forEach(function (r) { r.classList.remove("focused"); });
   }
 
   function toggleShowLg() {
@@ -377,10 +383,68 @@
     saveSettings();
   }
 
+  /* ---------- Block ads (the bundled opentv-adblock) ----------
+     Its state comes from the ad blocker itself, not from the launcher's
+     settings, so the switch always shows what is really running. */
+  var adblock = { installed: false, enabled: false, busy: false };
+
+  function drawAdblock() {
+    lsAdblock.hidden = !adblock.installed;
+    lsAdblock.setAttribute("aria-checked", adblock.enabled ? "true" : "false");
+    lsAdblock.classList.toggle("busy", !!adblock.busy);
+    var hint;
+    if (adblock.busy) hint = adblock.enabled ? "Switching on\u2026 open apps will close" : "Switching off\u2026 open apps will close";
+    else if (!adblock.enabled) hint = "Prime Video ads and Google ad servers";
+    else if (adblock.prime === "starting") hint = "On: starting\u2026";
+    else if (adblock.prime === "on" && adblock.hosts === "on") hint = "On: Prime Video and Google ads";
+    else if (adblock.prime === "on") hint = "On: Prime Video ads";
+    else if (adblock.hosts === "on") hint = "On: Google ads" + (adblock.prime === "missing" ? "" : " (Prime Video not available)");
+    else hint = "On, but not active: see ctl.sh logs";
+    lsAdblockHint.textContent = hint;
+    if (lsOpen) lsFocusRow(lsRow);
+  }
+
+  function refreshAdblock() {
+    if (adblock.busy) return;
+    luna(SERVICE + "/adblock", {}, function (res) {
+      if (!res || !res.returnValue || adblock.busy) return;
+      adblock.installed = !!res.installed;
+      adblock.enabled = !!res.enabled;
+      adblock.hosts = res.hosts;
+      adblock.prime = res.prime;
+      adblock.busy = !!res.busy;
+      drawAdblock();
+      if (res.busy) setTimeout(refreshAdblock, 3000);
+    }, 25000);
+  }
+
+  function toggleAdblock() {
+    if (adblock.busy || !adblock.installed) return;
+    var want = !adblock.enabled;
+    adblock.enabled = want;
+    adblock.busy = true;
+    drawAdblock();
+    luna(SERVICE + "/adblockSet", { on: want }, function (res) {
+      adblock.busy = false;
+      if (res && res.installed) {
+        adblock.enabled = !!res.enabled;
+        adblock.hosts = res.hosts;
+        adblock.prime = res.prime;
+      } else {
+        adblock.enabled = !want;
+      }
+      drawAdblock();
+      if (res && res.returnValue) toast(want ? "Ads blocked" : "Ad blocking off");
+      else toast((res && res.errorText) || "Couldn't switch ad blocking", true);
+    }, 130000);
+  }
+
   function settingsKey(code) {
     switch (code) {
       case KEY.ENTER:
-        if (lsRow === 0) toggleShowLg(); else toggleShowPerf();
+        if (lsRows[lsRow] === lsShowLg) toggleShowLg();
+        else if (lsRows[lsRow] === lsShowPerf) toggleShowPerf();
+        else if (lsRows[lsRow] === lsAdblock) toggleAdblock();
         break;
       case KEY.UP:
         if (lsRow > 0) lsFocusRow(lsRow - 1); else closeLauncherSettings();
@@ -403,6 +467,8 @@
   lsShowPerf.addEventListener("click", function (e) { e.stopPropagation(); lsFocusRow(1); toggleShowPerf(); });
   lsShowLg.addEventListener("mouseenter", function () { lsFocusRow(0); });
   lsShowPerf.addEventListener("mouseenter", function () { lsFocusRow(1); });
+  lsAdblock.addEventListener("click", function (e) { e.stopPropagation(); lsFocusRow(lsRows.indexOf(lsAdblock)); toggleAdblock(); });
+  lsAdblock.addEventListener("mouseenter", function () { lsFocusRow(lsRows.indexOf(lsAdblock)); });
 
   /* ---------- Performance panel ---------- */
   var perfTimer = null;
@@ -1165,4 +1231,6 @@
   loadSettings();
   /* boot.js: started fine, no fallback to LG's home needed */
   window.__launcherReady = true;
+  /* Learn whether the ad blocker is there, so Block ads is ready in the menu */
+  setTimeout(refreshAdblock, 5000);
 })();

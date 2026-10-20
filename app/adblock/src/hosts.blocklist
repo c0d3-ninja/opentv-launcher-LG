@@ -1,0 +1,50 @@
+# opentv-adblock: Google ad servers
+# Appended to the TV's /etc/hosts at boot. These domains only serve ads and ad tracking.
+#
+# Deliberately NOT blocked, because apps need them to play video at all:
+#   imasdk.googleapis.com   Google IMA video player SDK (SonyLIV and others)
+#   dai.google.com          Google Dynamic Ad Insertion: some live streams are served
+#                           entirely through it, so blocking it stops the stream
+#
+# Add your own entries to hosts.custom in the install folder, not here.
+
+0.0.0.0 doubleclick.net
+0.0.0.0 www.doubleclick.net
+0.0.0.0 ad.doubleclick.net
+0.0.0.0 ad-g.doubleclick.net
+0.0.0.0 ad.mo.doubleclick.net
+0.0.0.0 cm.g.doubleclick.net
+0.0.0.0 fls.doubleclick.net
+0.0.0.0 googleads.g.doubleclick.net
+0.0.0.0 googleads4.g.doubleclick.net
+0.0.0.0 m.doubleclick.net
+0.0.0.0 mediavisor.doubleclick.net
+0.0.0.0 pagead.l.doubleclick.net
+0.0.0.0 pagead46.l.doubleclick.net
+0.0.0.0 pubads.g.doubleclick.net
+0.0.0.0 securepubads.g.doubleclick.net
+0.0.0.0 static.doubleclick.net
+0.0.0.0 stats.g.doubleclick.net
+
+0.0.0.0 googlesyndication.com
+0.0.0.0 ade.googlesyndication.com
+0.0.0.0 afs.googlesyndication.com
+0.0.0.0 pagead2.googlesyndication.com
+0.0.0.0 tpc.googlesyndication.com
+0.0.0.0 video-ad-stats.googlesyndication.com
+
+0.0.0.0 googleadservices.com
+0.0.0.0 www.googleadservices.com
+0.0.0.0 partner.googleadservices.com
+
+0.0.0.0 googletagservices.com
+0.0.0.0 www.googletagservices.com
+
+0.0.0.0 adservice.google.com
+0.0.0.0 adservice.google.co.in
+0.0.0.0 adservice.google.co.uk
+0.0.0.0 adservice.google.de
+
+0.0.0.0 2mdn.net
+0.0.0.0 s0.2mdn.net
+0.0.0.0 s1.2mdn.net

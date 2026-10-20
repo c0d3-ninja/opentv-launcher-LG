@@ -156,7 +156,7 @@ while :; do
   sleep 15
 done
 ok "OpenTV Launcher is installed"
-for f in index.html boot.js apps.js launcher.js style.css autostart.sh install-autostart.sh sync-icons.js; do
+for f in index.html boot.js apps.js launcher.js style.css autostart.sh install-autostart.sh sync-icons.js adblock/install.sh; do
   [ -f "$APPDIR/$f" ] || fail "Installed, but $f is missing from $APPDIR"
 done
 [ -f "$APPS/services/$SERVICE_ID/service.js" ] || fail "Installed, but the background service is missing."
@@ -170,8 +170,40 @@ sh "$APPDIR/install-autostart.sh" </dev/null >/dev/null 2>&1
 [ -x "$INIT_FILE" ] || fail "Could not create the start-up file $INIT_FILE"
 ok "Starts automatically every time the TV turns on"
 
+# ---------------------------------------------------------------- ad blocker
+step 7 "Setting up the ad blocker"
+# The ad blocker (opentv-adblock-webos) ships inside the launcher. It is installed
+# to the same place as a separate install, and switched on or off with
+# "Block ads" in Launcher Settings.
+ADB_DIR="/home/root/opentv-adblock"
+ADB_OWNED="/var/lib/webosbrew/opentvlauncher/adblock-installed-by-launcher"
+if [ -f "$ADB_DIR/ctl.sh" ] && [ ! -f "$ADB_OWNED" ]; then
+  ok "Ad blocker already installed separately: left as it is"
+  ok "\"Block ads\" in Launcher Settings switches it on and off"
+else
+  # Keep the current setting when updating; a new install starts off
+  was_on=0
+  grep -q '^ENABLED=1' "$ADB_DIR/config" 2>/dev/null && [ -f "$ADB_OWNED" ] && was_on=1
+  if sh "$APPDIR/adblock/install.sh" --no-start </dev/null >/tmp/opentvlauncher-adblock.txt 2>&1 &&
+     [ -f "$ADB_DIR/ctl.sh" ]; then
+    mkdir -p "$(dirname "$ADB_OWNED")"
+    echo "$(cat "$APPDIR/adblock/VERSION" 2>/dev/null)" > "$ADB_OWNED"
+    if [ $was_on = 1 ]; then
+      sh "$ADB_DIR/ctl.sh" on </dev/null >/dev/null 2>&1
+      ok "Ad blocker updated, and on (as before)"
+    else
+      sh "$ADB_DIR/ctl.sh" off </dev/null >/dev/null 2>&1
+      ok "Ad blocker installed. It is off: switch on \"Block ads\" in Launcher Settings"
+    fi
+    rm -f /tmp/opentvlauncher-adblock.txt
+  else
+    warn "The ad blocker could not be installed (the launcher works without it):"
+    sed -n 's/^ *\[\(FAIL\|!!\)\] /    /p' /tmp/opentvlauncher-adblock.txt
+  fi
+fi
+
 # ---------------------------------------------------------------- verify
-step 7 "Checking everything works (up to 90 seconds)"
+step 8 "Checking everything works (up to 90 seconds)"
 info "Waiting for the launcher to set itself up"
 i=0
 until grep -q "boot -> launcher" "$LOG" 2>/dev/null; do
@@ -218,6 +250,7 @@ echo "  Try it with the remote:"
 echo "    - Home opens OpenTV Launcher"
 echo "    - Back twice opens Recent Lists"
 echo "    - LG Home (top bar) opens LG's own home"
+echo "    - Launcher Settings (sliders, top bar) has \"Block ads\""
 echo ""
 echo "  Log: $LOG"
 echo "  To remove it later, paste this into the TV's root shell:"

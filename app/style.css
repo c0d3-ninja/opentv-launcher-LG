@@ -572,6 +572,23 @@ body.expanded .row-title:not(.row-title-first) { color: rgba(245,245,247,0.8); }
 }
 .ls-row[aria-checked="true"] .ls-switch { background: #34C759; }
 .ls-row[aria-checked="true"] .ls-knob { transform: translate3d(26px,0,0); }
+.ls-row[hidden] { display: none; }
+/* Switching (Block ads takes a few seconds): spinner on the knob */
+.ls-busy {
+  display: none;
+  position: absolute;
+  top: 9px;
+  left: 9px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 3px solid rgba(0,0,0,0.15);
+  border-top-color: #34C759;
+  animation: spin 900ms linear infinite;
+}
+.ls-row.busy .ls-busy { display: block; }
+.ls-row.busy[aria-checked="true"] .ls-busy { left: 35px; }
+.ls-row.busy .ls-label, .ls-row.busy .ls-hint { opacity: 0.75; }
 
 /* ---------- Performance panel (right side of the banner) ---------- */
 #perf {

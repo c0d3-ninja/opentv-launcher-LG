@@ -119,7 +119,24 @@ if luna-send -n 1 -w 8000 luna://com.webos.applicationManager/listLaunchPoints '
 fi
 ok "App, icon and background service removed"
 
-step 5 "Removing saved data"
+step 5 "Removing the ad blocker"
+# Only if the launcher installed it; a separate install of opentv-adblock is kept
+ADB_DIR="/home/root/opentv-adblock"
+if [ -f "$DATA_DIR/adblock-installed-by-launcher" ] && [ -f "$ADB_DIR/uninstall.sh" ]; then
+  if sh "$ADB_DIR/uninstall.sh" </dev/null >/tmp/opentvlauncher-adblock.txt 2>&1 && [ ! -f "$ADB_DIR/ctl.sh" ]; then
+    ok "Ad blocker turned off and removed"
+  else
+    warn "The ad blocker could not be removed completely:"
+    sed -n 's/^ *\[\(FAIL\|!!\)\] /    /p' /tmp/opentvlauncher-adblock.txt
+  fi
+  rm -f /tmp/opentvlauncher-adblock.txt
+elif [ -f "$ADB_DIR/ctl.sh" ]; then
+  ok "Ad blocker was installed separately: kept (remove it with sh $ADB_DIR/uninstall.sh)"
+else
+  ok "No ad blocker to remove"
+fi
+
+step 6 "Removing saved data"
 rm -rf "$DATA_DIR" "$LOG"
 ok "Recent apps list and log removed"
 

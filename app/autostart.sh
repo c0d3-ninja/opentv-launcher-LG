@@ -177,6 +177,11 @@ cleanup_if_uninstalled() {
   app_is_gone || return 0
   echo "$(date) app was uninstalled: removing the watcher"
   rm -f "$INIT_FILE"
+  # The ad blocker, only if the launcher installed it (a separate install is kept)
+  if [ -f "$RECENT_DIR/adblock-installed-by-launcher" ] && [ -f /home/root/opentv-adblock/uninstall.sh ]; then
+    sh /home/root/opentv-adblock/uninstall.sh </dev/null >/dev/null 2>&1
+    echo "$(date) ad blocker removed"
+  fi
   rm -rf "$RECENT_DIR"
   for p in $(ps -ef 2>/dev/null | grep -E "luna-send -i .*(getForegroundAppInfo|getPowerState)|tail -n 0 -F /var/log/messages" | grep -v grep | awk '{print $2}'); do
     kill "$p" 2>/dev/null

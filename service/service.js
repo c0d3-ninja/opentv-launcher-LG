@@ -100,37 +100,42 @@ service.register("recents", function (msg) {
     });
 });
 
+// Close an app and remove its card from Recent Lists, like LG's X
+function recentLs(uri, payload, cb) {
+  require("child_process").execFile("luna-send", ["-n", "1", "-w", "4000", uri, JSON.stringify(payload)],
+    { timeout: 6000 }, function (err, out) { cb(String(out || "")); });
+}
+function closeRecent(id, cb) {
+  recentLs("luna://com.webos.applicationManager/closeByAppId", { id: id }, function () {
+    recentLs("luna://com.webos.service.recent/removeRecent", { appId: id }, function () { cb(); });
+  });
+}
+// LG's "Close All": every card except this launcher
+function closeAllRecents(cb) {
+  recentLs("luna://com.webos.service.recent/listRecents", {}, function (out) {
+    var ids = [];
+    try { ids = (JSON.parse(out).recentsAppList || []).map(function (r) { return r.appId; }); } catch (e) {}
+    ids = ids.filter(function (id) { return id && id !== "com.opentvlauncher.lg"; });
+    (function next() {
+      if (!ids.length) { cb(); return; }
+      closeRecent(ids.shift(), next);
+    })();
+  });
+}
+
 // Remove one card from Recent Lists and close that app, like LG's X: { id }
 // With { all: true } does the same for every card (LG's "Close All").
 service.register("recentsClose", function (msg) {
-  var cp = require("child_process");
   var p = msg.payload || {};
-  function ls(uri, payload, cb) {
-    cp.execFile("luna-send", ["-n", "1", "-w", "4000", uri, JSON.stringify(payload)],
-      { timeout: 6000 }, function (err, out) { cb(String(out || "")); });
-  }
-  function closeOne(id, cb) {
-    ls("luna://com.webos.applicationManager/closeByAppId", { id: id }, function () {
-      ls("luna://com.webos.service.recent/removeRecent", { appId: id }, function () { cb(); });
-    });
-  }
   if (p.all) {
-    ls("luna://com.webos.service.recent/listRecents", {}, function (out) {
-      var ids = [];
-      try { ids = (JSON.parse(out).recentsAppList || []).map(function (r) { return r.appId; }); } catch (e) {}
-      ids = ids.filter(function (id) { return id && id !== "com.opentvlauncher.lg"; });
-      (function next() {
-        if (!ids.length) { msg.respond({ returnValue: true }); return; }
-        closeOne(ids.shift(), next);
-      })();
-    });
+    closeAllRecents(function () { msg.respond({ returnValue: true }); });
     return;
   }
   if (typeof p.id !== "string" || !/^[A-Za-z0-9._-]+$/.test(p.id) || p.id === "com.opentvlauncher.lg") {
     msg.respond({ returnValue: false, errorText: "bad id" });
     return;
   }
-  closeOne(p.id, function () { msg.respond({ returnValue: true }); });
+  closeRecent(p.id, function () { msg.respond({ returnValue: true }); });
 });
 
 // Launcher settings, kept outside the app folder so reinstalls keep them.
@@ -283,6 +288,58 @@ service.register("askDelete", function (msg) {
     });
 });
 
+// ---------- Ad blocker (opentv-adblock-webos, bundled in app/adblock) ----------
+// Its own control script is the source of truth, so the switch always shows the
+// real state, also after "ctl.sh on/off" from a shell.
+var ADBLOCK_CTL = "/home/root/opentv-adblock/ctl.sh";
+var adblockBusy = false;
+
+function adblockState(cb) {
+  if (!require("fs").existsSync(ADBLOCK_CTL)) { cb({ returnValue: true, installed: false }); return; }
+  require("child_process").execFile("sh", [ADBLOCK_CTL, "state"], { timeout: 20000 }, function (err, out) {
+    var st = {};
+    String(out || "").split("\n").forEach(function (l) {
+      var i = l.indexOf("=");
+      if (i > 0) st[l.slice(0, i)] = l.slice(i + 1).trim();
+    });
+    if (st.installed !== "1") { cb({ returnValue: false, errorText: "Couldn't read the ad blocker's state" }); return; }
+    cb({
+      returnValue: true,
+      installed: true,
+      enabled: st.enabled === "1",
+      hosts: st.hosts || "off",          // on | off | disabled
+      prime: st.prime || "off",          // on | off | starting | disabled | missing | unsupported
+      adBreaksRemoved: Number(st.ad_breaks_removed) || 0,
+      busy: adblockBusy
+    });
+  });
+}
+
+// { installed, enabled, hosts, prime, adBreaksRemoved, busy }
+service.register("adblock", function (msg) {
+  adblockState(function (st) { msg.respond(st); });
+});
+
+// { on: true|false }: switches it on or off, now and after every reboot. Takes a
+// few seconds (up to about 40 with Prime Video). The apps in Recent Lists are
+// closed so they open fresh with the new setting; this launcher stays open.
+service.register("adblockSet", function (msg) {
+  var on = !!(msg.payload && msg.payload.on);
+  if (!isRoot()) { msg.respond({ returnValue: false, errorText: "Not ready yet, try again in a moment" }); return; }
+  if (!require("fs").existsSync(ADBLOCK_CTL)) { msg.respond({ returnValue: false, errorText: "The ad blocker is not installed" }); return; }
+  if (adblockBusy) { msg.respond({ returnValue: false, errorText: "Already switching" }); return; }
+  adblockBusy = true;
+  require("child_process").execFile("sh", [ADBLOCK_CTL, on ? "on" : "off"], { timeout: 120000 }, function () {
+    adblockBusy = false;
+    adblockState(function (st) {
+      if (!st.returnValue) { msg.respond(st); return; }
+      st.returnValue = st.enabled === on;
+      if (!st.returnValue) st.errorText = "Couldn't switch the ad blocker " + (on ? "on" : "off");
+      msg.respond(st);
+    });
+  });
+});
+
 // Restart, with LG's own confirmation popup. "Restart" reopens the
 // launcher with params.opentvRestart, which then calls "restart".
 service.register("askRestart", function (msg) {
@@ -306,11 +363,20 @@ service.register("askRestart", function (msg) {
 service.register("restart", function (msg) {
   var cp = require("child_process");
   msg.respond({ returnValue: true });
-  // LG's own restart first (saves settings properly), then a plain reboot
-  setTimeout(function () {
+  var started = false;
+  function reboot() {
+    if (started) return;
+    started = true;
+    // LG's own restart first (saves settings properly), then a plain reboot
     cp.execFile("luna-send", ["-n", "1", "-w", "8000", "luna://com.webos.service.tvpower/power/reboot",
       JSON.stringify({ reason: "remoteKey" })], { timeout: 10000 }, function (err, out) {
       if (err || !/"returnValue": *true/.test(String(out))) cp.exec("reboot", function () {});
     });
+  }
+  // Clear Recent Lists first, so the TV starts with an empty list. Never wait more
+  // than 15 seconds for it: the restart always happens.
+  setTimeout(function () {
+    closeAllRecents(reboot);
+    setTimeout(reboot, 15000);
   }, 500);
 });

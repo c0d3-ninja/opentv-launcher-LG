@@ -1,1 +1,1 @@
-com.opentvlauncher.lg_1.8.5_all.ipk
+com.opentvlauncher.lg_1.9.0_all.ipk
