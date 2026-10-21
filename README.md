@@ -14,7 +14,7 @@ A clean, ad-free home screen for rooted LG webOS TVs, in the style of Apple TV, 
 
 - 🕘 **Recent row:** your last used apps first (up to 10), topped up with favourites.
 - 📱 **All Apps:** every installed app, with its real icon. New apps appear by themselves.
-- 🛡️ **Block ads:** one switch removes Prime Video's ad breaks and pause ads, and blocks Google's ad servers for every app (YouTube only partly). Off until you switch it on. Powered by [opentv-adblock-webos](https://github.com/c0d3-ninja/opentv-adblock-webos).
+- 🛡️ **Block ads:** one switch removes Prime Video's ad breaks and pause ads, and blocks Google's ad servers for every app. Off until you switch it on. Powered by [opentv-adblock-webos](https://github.com/c0d3-ninja/opentv-adblock-webos).
 - 👁️ **Hide LG TV apps:** keeps only Browser, Apps (the LG store) and HDMI inputs. Off by default.
 - 🗑️ **Delete apps like on LG's home:** hold OK, ⬆️ to **Delete**, confirm in LG's own popup.
 - 🔙 **Recent Lists:** press **Back twice** to see open apps, then close one or all.
@@ -158,7 +158,6 @@ Some TVs block downloads from the internet. If so, the installer tells you, and 
 - ⏱️ **At power on,** LG's screen shows first and the launcher takes over after about **3 to 5 seconds**.
 - ⚡ **After Home or Back,** the launcher appears within about **0.1 to 1 second**; you may briefly see LG's home. LG doesn't let other apps replace its home screen, so the launcher steps in right after it opens.
 - 🛡️ **Switching Block ads** takes a few seconds and closes the apps in Recent Lists, so they open fresh with the new setting.
-- 📺 **YouTube ads are only partly blocked.** The Google blocklist stops some of them, but the YouTube app gets most of its ads from YouTube's own servers, the same ones that send the videos, so those can't be blocked without blocking YouTube itself.
 
 ---
 
