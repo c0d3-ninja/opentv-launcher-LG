@@ -1,5 +1,7 @@
 # 📺 OpenTV Launcher for LG
 
+> ⚠️ **Rooting your TV may void its warranty.** Proceed at your own risk.
+
 A clean, ad-free home screen for rooted LG webOS TVs, in the style of Apple TV, with a built-in ad blocker.
 
 ✅ Tested on an LG OLED42C2PSA (2022) with **webOS 25** (webOS TV 10.3.1, software version 33.31.68), rooted with [slopbro](https://github.com/throwaway96/slopbro).
