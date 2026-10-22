@@ -270,7 +270,17 @@ port_taken_by_other() {
 proxy_loop() {
   write_pid "$LOOP_PID" $$
   fails=0
+  cooldown=0       # seconds to wait before retrying after a give-up
   while loop_is_me; do
+    if [ $cooldown -gt 0 ]; then
+      log "Prime Video: retrying in $(( cooldown / 60 )) minutes"
+      sleep $cooldown
+      loop_is_me || break
+      cooldown=0
+      fails=0
+      d=$(prime_dir) && prime_route "$d"
+      log "Prime Video: proxy restarting after cooldown"
+    fi
     if port_taken_by_other; then
       log "Prime Video: port $PROXY_PORT is used by another program; change PROXY_PORT in config"
       d=$(prime_dir) && prime_unroute "$d"
@@ -292,10 +302,10 @@ proxy_loop() {
       rm -f "$NODE_PID"
       loop_is_me || break
       if [ $code = 3 ]; then
-        # The proxy couldn't verify Amazon's certificates: the app checks them itself again
-        log "Prime Video: Amazon's certificates could not be verified (see $PLOG); app set back to normal"
+        # The proxy couldn't verify Amazon's certificates: unroute and retry after a cooldown
+        log "Prime Video: Amazon's certificates could not be verified (see $PLOG); app set back to normal, retrying later"
         d=$(prime_dir) && prime_unroute "$d"
-        rm -f "$LOOP_PID"; exit 1
+        cooldown=300; continue
       fi
       if port_taken_by_other; then
         log "Prime Video: port $PROXY_PORT is used by another program; change PROXY_PORT in config"
@@ -304,10 +314,10 @@ proxy_loop() {
       fi
       if [ $(( $(date +%s) - t0 )) -lt 30 ]; then fails=$((fails + 1)); else fails=1; fi
       if [ $fails -ge 3 ]; then
-        # Without the proxy the app can't connect at all: give the app back its normal settings
-        log "Prime Video: the proxy keeps stopping (see $PLOG); app set back to normal"
+        # The proxy keeps crashing quickly: unroute and retry after a cooldown
+        log "Prime Video: the proxy keeps stopping (see $PLOG); app set back to normal, retrying later"
         d=$(prime_dir) && prime_unroute "$d"
-        rm -f "$LOOP_PID"; exit 1
+        cooldown=300; continue
       fi
       log "Prime Video: proxy stopped; restarting"
     fi
